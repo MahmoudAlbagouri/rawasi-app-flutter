@@ -178,6 +178,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
               : null,
         ),
         'plan_id': widget.planId.toString(),
+        if (_appliedCouponCode != null) 'coupon': _appliedCouponCode,
       });
 
       final response = await ApiServices().postFormData(
@@ -436,11 +437,8 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                     ),
                   ),
 
-                // 👇 هنا التغيير الرئيسي: عرض قسم الكوبون بشكل مشروط
-                if (widget.hasDiscount) ...[
-                  const Gap(24),
-                  _buildCouponSection(),
-                ],
+                const Gap(24),
+                _buildCouponSection(),
 
                 const Gap(24),
 

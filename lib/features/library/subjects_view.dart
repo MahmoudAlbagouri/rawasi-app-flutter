@@ -3,14 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
-import 'package:rawasi_app_n/core/profile/student_profile.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/auth/views/profile_view.dart';
 import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
-import 'package:rawasi_app_n/features/library/content_types_view.dart';
 import 'package:rawasi_app_n/features/library/data/subject_item.dart';
 import 'package:rawasi_app_n/features/library/data/library_repo.dart';
+import 'package:rawasi_app_n/features/library/questions_view.dart';
 import 'package:rawasi_app_n/root.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
@@ -23,7 +23,7 @@ class SubjectsView extends StatefulWidget {
 
 class _SubjectsViewState extends State<SubjectsView> {
   late Future<bool> _isSignedInFuture;
-  late Future<StudentProfile?> _profileFuture;
+  late Future<Student?> _profileFuture;
 
   @override
   void initState() {
@@ -32,7 +32,7 @@ class _SubjectsViewState extends State<SubjectsView> {
     _profileFuture = _loadProfile();
   }
 
-  Future<StudentProfile?> _loadProfile() async {
+  Future<Student?> _loadProfile() async {
     final isSignedIn = await isUserSignedIn();
     if (!isSignedIn) return null;
     try {
@@ -72,7 +72,7 @@ class _SubjectsViewState extends State<SubjectsView> {
                 return _buildLoginRequiredScreen();
               }
 
-              return FutureBuilder<StudentProfile?>(
+              return FutureBuilder<Student?>(
                 future: _profileFuture,
                 builder: (context, profileSnapshot) {
                   if (profileSnapshot.connectionState ==
@@ -95,7 +95,7 @@ class _SubjectsViewState extends State<SubjectsView> {
           ),
         ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 3),
+      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 2),
     );
   }
 
@@ -210,7 +210,7 @@ class _SubjectsViewState extends State<SubjectsView> {
   }
 
   // 👇 الدالة المعدّلة لتمييز الحالتين
-  Widget _buildPendingReviewScreen(StudentProfile? profile) {
+  Widget _buildPendingReviewScreen(Student? profile) {
     if (profile != null && !profile.isUploadPaidCertificate) {
       return Center(
         child: Padding(
@@ -302,11 +302,7 @@ class _SubjectsViewState extends State<SubjectsView> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ContentTypesView(
-              subjectId: subject.id,
-              subjectName: subject.name,
-              initialType: '',
-            ),
+            builder: (_) => QuestionsView(subjectId: subject.id),
           ),
         );
       },

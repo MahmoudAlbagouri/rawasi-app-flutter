@@ -9,6 +9,28 @@ import 'package:rawasi_app_n/features/library/data/subject_item.dart';
 class LibraryRepo {
   final ApiServices _apiServices = ApiServices();
 
+  // إضافة سؤال إلى المكتبة
+  Future<void> addToLibrary({required int courseId, required int questionId}) async {
+    final isSignedIn = await isUserSignedIn();
+    if (!isSignedIn) {
+      throw Exception('المستخدم غير مسجل الدخول');
+    }
+
+    final result = await _apiServices.post('/add-to-library', {
+      'course_id': courseId.toString(),
+      'task_id': questionId.toString(),
+      'type': 'question',
+    });
+
+    if (result is Map<String, dynamic>) {
+      if (result['success'] == true) return;
+      throw Exception(result['message'] as String? ?? 'فشل الإضافة إلى المكتبة');
+    } else if (result is String) {
+      throw Exception(result);
+    }
+    throw Exception('استجابة غير متوقعة من الخادم');
+  }
+
   // جلب قائمة المواد (فقه، تفسير، ...)
   Future<List<SubjectItem>> fetchSubjects() async {
     final isSignedIn = await isUserSignedIn();

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
-import 'package:rawasi_app_n/core/profile/student_profile.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
 import 'package:rawasi_app_n/features/auth/data/subscription_repo.dart';
@@ -18,7 +18,7 @@ class SubscriptionView extends StatefulWidget {
 }
 
 class _SubscriptionViewState extends State<SubscriptionView> {
-  late Future<StudentProfile?> _profileFuture;
+  late Future<Student?> _profileFuture;
   late Future<List<SubscriptionPlan>> _plansFuture;
 
   @override
@@ -28,7 +28,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
     _plansFuture = SubscriptionRepo().fetchPlans();
   }
 
-  Future<StudentProfile?> _loadProfile() async {
+  Future<Student?> _loadProfile() async {
     final isSignedIn = await isUserSignedIn();
     if (!isSignedIn) return null;
     try {
@@ -65,7 +65,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: FutureBuilder<StudentProfile?>(
+        child: FutureBuilder<Student?>(
           future: _profileFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {

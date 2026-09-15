@@ -1,15 +1,10 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:rawasi_app_n/core/utils/app_sync_service.dart';
 import 'package:rawasi_app_n/splash.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 👇 استدعاء الـ API فور فتح التطبيق (قبل تشغيل الواجهة)
-  await AppSyncService.syncExpectedDayOnAppOpen();
-
   runApp(const MyApp());
 }
 

@@ -3,17 +3,18 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
-import 'package:rawasi_app_n/features/days/views/days_view.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class DailyProgressCard extends StatelessWidget {
   final String name;
   final double progress;
+  final VoidCallback onContinue;
 
   const DailyProgressCard({
     super.key,
     required this.name,
     required this.progress,
+    required this.onContinue,
   });
 
   @override
@@ -77,14 +78,7 @@ class DailyProgressCard extends StatelessWidget {
                   child: SizedBox(
                     height: 36,
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DaysView(),
-                          ),
-                        );
-                      },
+                      onPressed: onContinue,
                       label: const Text('استمرار'),
                       icon: const Icon(Icons.arrow_forward_ios, size: 14),
                       iconAlignment: IconAlignment.end,

@@ -2,14 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 
 class DioClient {
-  final Dio _dio = Dio(
+  static final Dio _dio = Dio(
     BaseOptions(
       baseUrl: "https://rawasi.info/api/student",
       headers: {"Accept": 'application/json'},
     ),
-  );
-  DioClient() {
-    _dio.interceptors.add(
+  )..interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await PrefHelper.getToken();
@@ -18,8 +16,14 @@ class DioClient {
           }
           return handler.next(options);
         },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            await PrefHelper.clearToken();
+          }
+          return handler.next(error);
+        },
       ),
     );
-  }
+
   Dio get dio => _dio;
 }

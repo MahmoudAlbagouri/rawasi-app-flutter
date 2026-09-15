@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
-import 'package:rawasi_app_n/core/profile/student_profile.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/widgets/profile_menu_list.dart';
@@ -41,7 +41,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  Future<StudentProfile?> _fetchProfile() async {
+  Future<Student?> _fetchProfile() async {
     final isSignedIn = await isUserSignedIn();
     if (!isSignedIn) return null;
     try {
@@ -74,7 +74,7 @@ class _ProfileViewState extends State<ProfileView> {
 
           if (isSignedIn) {
             // جلب بيانات الملف الشخصي
-            return FutureBuilder<StudentProfile?>(
+            return FutureBuilder<Student?>(
               future: _fetchProfile(),
               builder: (context, profileSnapshot) {
                 if (profileSnapshot.connectionState ==
@@ -84,9 +84,7 @@ class _ProfileViewState extends State<ProfileView> {
 
                 final profile = profileSnapshot.data;
 
-                final fullName = profile != null
-                    ? '${profile.firstName} ${profile.lastName}'
-                    : 'مستخدم';
+                final fullName = profile != null ? profile.fullName : 'مستخدم';
                 final username = profile?.phone1 != null
                     ? '@${profile!.phone1}'
                     : '@7657657'; // fallback مؤقت
@@ -229,7 +227,7 @@ class _ProfileViewState extends State<ProfileView> {
           }
         },
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 4),
+      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 3),
     );
   }
 }

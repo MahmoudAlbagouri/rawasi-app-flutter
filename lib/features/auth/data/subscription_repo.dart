@@ -6,8 +6,11 @@ import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
 class SubscriptionRepo {
   final ApiServices _api = ApiServices();
 
-  Future<List<SubscriptionPlan>> fetchPlans() async {
-    final response = await _api.get('/subscription-plans');
+  Future<List<SubscriptionPlan>> fetchPlans({String? grade}) async {
+    final endpoint = grade != null && grade.isNotEmpty
+        ? '/subscription-plans?grade=$grade'
+        : '/subscription-plans';
+    final response = await _api.get(endpoint);
 
     if (response is ApiError) {
       throw response;

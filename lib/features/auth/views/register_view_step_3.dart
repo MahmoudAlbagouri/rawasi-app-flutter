@@ -1,513 +1,303 @@
 // lib/features/auth/views/register_view_step_3.dart
+//
+// Step 3: verify the OTP sent to the phone from step 2. On success the
+// account exists (profile incomplete) and we move to completing the profile.
 
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
-import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
-import 'package:rawasi_app_n/shared/custom_dropdown.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
-import 'package:rawasi_app_n/shared/custom_text_field.dart';
 import 'package:rawasi_app_n/shared/main_button.dart';
 
 class RegisterStep3View extends StatefulWidget {
-  final RegistrationData initialData;
-  const RegisterStep3View({super.key, required this.initialData});
+  final RegistrationData registrationData;
+
+  const RegisterStep3View({super.key, required this.registrationData});
 
   @override
   State<RegisterStep3View> createState() => _RegisterStep3ViewState();
 }
 
 class _RegisterStep3ViewState extends State<RegisterStep3View> {
-  final TextEditingController _instituteController = TextEditingController();
-  final TextEditingController _supervisorNameController =
-      TextEditingController();
-  final TextEditingController _supervisorPhoneController =
-      TextEditingController();
-  final TextEditingController _supervisor2NameController =
-      TextEditingController();
-  final TextEditingController _supervisor2PhoneController =
-      TextEditingController();
+  late final List<TextEditingController> _controllers;
+  late final List<FocusNode> _focusNodes;
+  int _remainingSeconds = 60;
+  bool _isCounting = false;
+  bool _isLoading = false;
 
-  bool _showSecondSupervisor = false;
-
-  final Map<String, List<String>> _governoratesAndCities = {
-    'القاهرة': [
-      'القاهرة',
-      'القاهرة الجديدة',
-      'المعادي',
-      'الزمالك',
-      'شبرا',
-      'المنيل',
-    ],
-    'الإسكندرية': [
-      'الإسكندرية',
-      'سموحة',
-      'العجمي',
-      'كرموز',
-      'برج العرب',
-      'أبو قير',
-    ],
-    'الجيزة': [
-      'الجيزة',
-      '6 أكتوبر',
-      'الشيخ زايد',
-      'العمرانية',
-      'كرداسة',
-      'أوسيم',
-    ],
-    'القليوبية': [
-      'بنها',
-      'شبرا الخيمة',
-      'قليوب',
-      'طوخ',
-      'كفر شكر',
-      'القناطر الخيرية',
-    ],
-    'الغربية': ['طنطا', 'المحلة الكبرى', 'زفتى', 'سمنود', 'قطور', 'بسيون'],
-    'الدقهلية': ['المنصورة', 'ميت غمر', 'دكرنس', 'أجا', 'بلقاس', 'منية النصر'],
-    'الشرقية': [
-      'الزقازيق',
-      'الإسماعيلية',
-      'أولاد صقر',
-      'ديرب نجم',
-      'ههيا',
-      'منيا القمح',
-    ],
-    'المنوفية': [
-      'شبين الكوم',
-      'قويسنا',
-      'بركة السبع',
-      'الباجور',
-      'أشمون',
-      'سرس الليان',
-    ],
-    'الفيوم': ['الفيوم', 'أبشواي', 'إطسا', 'سنورس', 'طامية', 'يوسف الصديق'],
-    'بني سويف': ['بني سويف', 'الواسطى', 'ناصر', 'إهناسيا', 'ببا', 'سمسطا'],
-    'المنيا': ['المنيا', 'مغاغة', 'بني مزار', 'مطاي', 'أبو قرقاص', 'ديرمواس'],
-    'أسيوط': [
-      'أسيوط',
-      'أبنوب',
-      'أسيوط الجديدة',
-      'منفلوط',
-      'الغنايم',
-      'البداري',
-    ],
-    'سوهاج': ['سوهاج', 'أخميم', 'دار السلام', 'طما', 'جهينة', 'المراغة'],
-    'قنا': ['قنا', 'القوصية', 'نجع حمادي', 'أبو تشت', 'فرشوط', 'ديروط'],
-    'الأقصر': ['الأقصر', 'إسنا', 'الزينية', 'أرمنت', 'طيبة'],
-    'أسوان': ['أسوان', 'كوم أمبو', 'إدفو', 'درة', 'نصر النوبة'],
-    'البحر الأحمر': ['الغردقة', 'رأس غارب', 'سفاجا', 'مرسى علم', 'القصير'],
-    'الوادي الجديد': ['الخارجة', 'باريس', 'الفرافرة', 'الداخلة', 'الضبعة'],
-    'مطروح': ['مرسى مطروح', 'السلوم', 'الضبعة', 'النجيلة', 'سيدي براني'],
-    'شمال سيناء': ['العريش', 'الشيخ زويد', 'رفح', 'بئر العبد', 'الحسنة'],
-    'جنوب سيناء': [
-      'شرم الشيخ',
-      'الطور',
-      'دهب',
-      'أبو رديس',
-      'نبق',
-      'سانت كاترين',
-    ],
-    'دمياط': ['دمياط', 'كفر سعد', 'عزبة البرج', 'فارسكور', 'الروضة'],
-    'بورسعيد': ['بورسعيد', 'الزهور', 'الضواحي', 'المنصورة الجديدة'],
-    'الإسماعيلية': [
-      'الإسماعيلية',
-      'فايد',
-      'القصاصين',
-      'أبو صوير',
-      'التل الكبير',
-    ],
-    'كفر الشيخ': ['كفر الشيخ', 'دسوق', 'فوه', 'مطوبس', 'بيلا', 'البرلس'],
-    'السويس': ['السويس', 'العين السخنة', 'فيصل', 'الجناين', 'عتاقة'],
-    'البحيرة': [
-      'دمنهور',
-      'رشيد',
-      'إدكو',
-      'أبو المطامير',
-      'المحمودية',
-      'حوش عيسى',
-    ],
-  };
-
-  String? _selectedGovernorate;
-  String? _selectedCity;
-  String? _selectedRelation;
-  String? _selectedRelation2;
-
-  final List<String> _relations = ['أب', 'أم', 'أخ', 'أخت', 'وصي', 'صديق'];
-
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final AuthRepo _authRepo = AuthRepo();
-  bool isLoading = false;
 
-  String? _validateRequiredText(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) {
-      return 'الرجاء إدخال هذا الحقل';
-    }
-    return null;
+  @override
+  void initState() {
+    _controllers = List.generate(4, (index) => TextEditingController());
+    _focusNodes = List.generate(4, (index) => FocusNode());
+    _startCountdown();
+    super.initState();
   }
 
-  String? _validatePhone(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) {
-      return 'الرجاء إدخال رقم الهاتف';
-    }
-    if (!RegExp(r'^01[0125][0-9]{8}$').hasMatch(text)) {
-      return 'رقم الهاتف غير صالح (11 رقمًا يبدأ بـ 010, 011, 012, أو 015)';
-    }
-    return null;
-  }
+  void _startCountdown() {
+    if (_isCounting) return;
+    _isCounting = true;
+    _remainingSeconds = 60;
 
-  Future<void> _register() async {
-    if (_formKey.currentState!.validate()) {
-      if (_selectedGovernorate == null ||
-          _selectedCity == null ||
-          _selectedRelation == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('الرجاء ملء جميع الحقول المطلوبة')),
-        );
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
         return;
       }
-
-      setState(() => isLoading = true);
-      try {
-        String? supervisor2Name;
-        String? supervisor2Relation;
-        String? supervisor2Phone;
-
-        if (_showSecondSupervisor) {
-          final name = _supervisor2NameController.text.trim();
-          final phone = _supervisor2PhoneController.text.trim();
-          if (name.isNotEmpty &&
-              phone.isNotEmpty &&
-              _selectedRelation2 != null) {
-            supervisor2Name = name;
-            supervisor2Relation = _selectedRelation2;
-            supervisor2Phone = phone;
-          }
-        }
-
-        final success = await _authRepo.register(
-          firstName: widget.initialData.firstName,
-          lastName: widget.initialData.lastName,
-          gender: widget.initialData.gender,
-          birthDate: widget.initialData.birthDate,
-          isFinalSecondary: widget.initialData.branch == 'science',
-          schoolBranch: widget.initialData.branch,
-          instituteName: _instituteController.text.trim(),
-          governorate: _selectedGovernorate!,
-          city: _selectedCity!,
-          phone1: widget.initialData.mainPhone,
-          phone2: widget.initialData.secondaryPhone,
-          isWhatsapp: true,
-          email: widget.initialData.email,
-          quranLevel: 'beginner',
-          doctrine: 'sunni',
-          supervisorName: _supervisorNameController.text.trim(),
-          supervisorRelation: _selectedRelation!,
-          supervisorPhone: _supervisorPhoneController.text.trim(),
-          supervisor2Name: supervisor2Name,
-          supervisor2Relation: supervisor2Relation,
-          supervisor2Phone: supervisor2Phone,
-          password: widget.initialData.password,
-          confirmPassword: widget.initialData.confirmPassword,
-          referralCode: widget.initialData.referralCode,
-        );
-
-        if (success) {
-          // ✅ إنشاء كائن بيانات كامل للشاشة التالية
-          final completeData = RegistrationData(
-            email: widget.initialData.email,
-            password: widget.initialData.password,
-            confirmPassword: widget.initialData.confirmPassword,
-            firstName: widget.initialData.firstName,
-            lastName: widget.initialData.lastName,
-            mainPhone: widget.initialData.mainPhone,
-            secondaryPhone: widget.initialData.secondaryPhone,
-            gender: widget.initialData.gender,
-            branch: widget.initialData.branch,
-            birthDate: widget.initialData.birthDate,
-            referralCode: widget.initialData.referralCode,
-
-            // 👇 الحقول من هذه الشاشة
-            instituteName: _instituteController.text.trim(),
-            governorate: _selectedGovernorate!,
-            city: _selectedCity!,
-            supervisorName: _supervisorNameController.text.trim(),
-            supervisorRelation: _selectedRelation!,
-            supervisorPhone: _supervisorPhoneController.text.trim(),
-            supervisor2Name: supervisor2Name,
-            supervisor2Relation: supervisor2Relation,
-            supervisor2Phone: supervisor2Phone,
-          );
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RegisterStep4View(
-                phoneNumber: widget.initialData.mainPhone,
-                registrationData: completeData, // ✅ تم التصحيح هنا
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        String msg = e is ApiError ? e.message : 'حدث خطأ غير متوقع';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(msg)));
-      } finally {
-        setState(() => isLoading = false);
+      if (_remainingSeconds > 0) {
+        setState(() => _remainingSeconds--);
+      } else {
+        timer.cancel();
+        setState(() => _isCounting = false);
       }
+    });
+  }
+
+  @override
+  void dispose() {
+    _isCounting = false;
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  String get _otpCode => _controllers.map((c) => c.text).join();
+
+  Future<void> _handleResend() async {
+    if (_isCounting) return;
+    setState(() => _isLoading = true);
+    try {
+      final data = widget.registrationData;
+      await _authRepo.register(
+        academicYear: data.academicYear,
+        planId: data.planId,
+        phone1: data.phone1,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+        referralCode: data.referralCode,
+        code: data.discountCode,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إعادة إرسال رمز التحقق!')),
+        );
+        _startCountdown();
+      }
+    } catch (e) {
+      final msg = e is ApiError ? e.message : 'فشل إعادة الإرسال';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppColors.error600),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    final otp = _otpCode;
+    if (otp.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الرجاء إدخال رمز التحقق المكون من 4 أرقام'),
+          backgroundColor: AppColors.error700,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _authRepo.checkOtp(widget.registrationData.phone1, otp);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              RegisterStep4View(registrationData: widget.registrationData),
+        ),
+      );
+    } catch (e) {
+      final msg = e is ApiError ? e.message : 'رمز التحقق غير صحيح';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: AppColors.error600),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.gray50,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-            onPressed: () => Navigator.pop(context),
-          ),
-          scrolledUnderElevation: 0,
-          title: CustomText(
-            text: 'إنشاء الحساب',
-            color: AppColors.brandPrimary,
-            size: 18,
-            weight: FontWeight.w600,
-          ),
-          centerTitle: true,
+    return Scaffold(
+      backgroundColor: AppColors.gray50,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Row(
-                    children: List.generate(4, (index) {
-                      final bool isCompleted = index < 2;
-                      final bool isCurrent = index == 2;
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isCompleted
-                                ? AppColors.brandPrimary
-                                : isCurrent
-                                ? AppColors.primary300
-                                : AppColors.primary100,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  Gap(24),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        Text(
-                          'أدخل بيانات معهدك',
-                          style: TextStyle(
-                            color: AppColors.gray600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Gap(32),
-
-                        _buildField(
-                          title: "اسم المعهد",
-                          child: CustomTextField(
-                            hint: "اسم المعهد",
-                            isPassword: false,
-                            controller: _instituteController,
-                            validator: _validateRequiredText,
-                          ),
-                        ),
-                        _buildField(
-                          title: "المحافظة",
-                          child: CustomDropdown<String>(
-                            hint: 'اختر المحافظة',
-                            items: _governoratesAndCities.keys.toList(),
-                            itemAsString: (item) => item,
-                            value: _selectedGovernorate,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedGovernorate = value;
-                                _selectedCity = null;
-                              });
-                            },
-                            required: true,
-                          ),
-                        ),
-                        _buildField(
-                          title: "المدينة",
-                          child: CustomDropdown<String>(
-                            hint: 'اختر المدينة',
-                            items: _selectedGovernorate != null
-                                ? _governoratesAndCities[_selectedGovernorate]!
-                                : [],
-                            itemAsString: (item) => item,
-                            value: _selectedCity,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedCity = value;
-                              });
-                            },
-                            required: true,
-                          ),
-                        ),
-                        _buildField(
-                          title: "اسم المشرف",
-                          child: CustomTextField(
-                            hint: "اسم المشرف",
-                            isPassword: false,
-                            controller: _supervisorNameController,
-                            validator: _validateRequiredText,
-                          ),
-                        ),
-                        _buildField(
-                          title: "صلة الاشراف",
-                          child: CustomDropdown<String>(
-                            hint: 'اختر صلة الاشراف',
-                            items: _relations,
-                            itemAsString: (item) => item,
-                            value: _selectedRelation,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedRelation = value;
-                              });
-                            },
-                            required: true,
-                          ),
-                        ),
-                        _buildField(
-                          title: "رقم هاتف المشرف",
-                          child: CustomTextField(
-                            hint: "01110022133",
-                            isPassword: false,
-                            controller: _supervisorPhoneController,
-                            validator: _validatePhone,
-                          ),
-                        ),
-
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 32.0),
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _showSecondSupervisor = !_showSecondSupervisor;
-                                if (!_showSecondSupervisor) {
-                                  _supervisor2NameController.clear();
-                                  _supervisor2PhoneController.clear();
-                                  _selectedRelation2 = null;
-                                }
-                              });
-                            },
-                            icon: Icon(
-                              _showSecondSupervisor ? Icons.remove : Icons.add,
-                              color: AppColors.brandPrimary,
-                            ),
-                            label: Text(
-                              _showSecondSupervisor
-                                  ? 'إخفاء المشرف الجديد'
-                                  : 'أضف مُشرفًا جديدًا (اختياري)',
-                              style: TextStyle(color: AppColors.brandPrimary),
-                            ),
-                          ),
-                        ),
-
-                        if (_showSecondSupervisor) ...[
-                          const Divider(color: AppColors.gray200, height: 24),
-                          _buildField(
-                            title: "اسم المشرف الجديد (اختياري)",
-                            child: CustomTextField(
-                              hint: "اسم المشرف",
-                              isPassword: false,
-                              controller: _supervisor2NameController,
-                            ),
-                          ),
-                          _buildField(
-                            title: "صلة الاشراف (اختياري)",
-                            child: CustomDropdown<String>(
-                              hint: 'اختر صلة الاشراف',
-                              items: _relations,
-                              itemAsString: (item) => item,
-                              value: _selectedRelation2,
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedRelation2 = value;
-                                });
-                              },
-                            ),
-                          ),
-                          _buildField(
-                            title: "رقم هاتف المشرف الجديد (اختياري)",
-                            child: CustomTextField(
-                              hint: "01110022133",
-                              isPassword: false,
-                              controller: _supervisor2PhoneController,
-                            ),
-                          ),
-                        ],
-
-                        CustomElevatedButton(
-                          text: isLoading ? 'جاري التسجيل...' : 'إنشاء',
-                          icon: const Icon(Icons.check),
-                          onPressed: isLoading ? null : _register,
-                        ),
-                      ],
+        foregroundColor: AppColors.brandPrimary,
+        scrolledUnderElevation: 0,
+        title: CustomText(
+          text: 'تأكيد الحساب',
+          color: AppColors.brandPrimary,
+          size: 18,
+          weight: FontWeight.w600,
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: List.generate(5, (index) {
+                  final bool isCompleted = index < 3;
+                  final bool isCurrent = index == 2;
+                  return Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? AppColors.brandPrimary
+                            : isCurrent
+                            ? AppColors.primary300
+                            : AppColors.primary100,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
+                  );
+                }),
+              ),
+              Gap(24),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: 'تم إرسال رمز التحقق إلى '),
+                    TextSpan(
+                      text: widget.registrationData.phone1,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.brandPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                style: TextStyle(color: AppColors.gray700, fontSize: 17),
+                textDirection: TextDirection.rtl,
+              ),
+              Gap(8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_isLoading)
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.brandPrimary,
+                      ),
+                      strokeWidth: 2,
+                    )
+                  else
+                    TextButton(
+                      onPressed: _isCounting ? null : _handleResend,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        foregroundColor: _isCounting
+                            ? AppColors.gray400
+                            : AppColors.brandPrimary,
+                      ),
+                      child: Text(
+                        _isCounting
+                            ? 'إعادة الإرسال (${_remainingSeconds}s)'
+                            : 'إعادة الإرسال',
+                        style: TextStyle(
+                          color: _isCounting
+                              ? AppColors.gray400
+                              : AppColors.brandPrimary,
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ),
+              Gap(48),
+              _buildOTPFields(),
+              Gap(40),
+              CustomElevatedButton(
+                text: _isLoading ? 'جاري التحقق...' : 'تأكيد',
+                onPressed: _isLoading ? null : _verifyOtp,
+                backgroundColor: AppColors.brandPrimary,
+                textColor: Colors.white,
+                textStyle: const TextStyle(fontSize: 16),
+                horizontalPadding: 24,
+                verticalPadding: 14,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildField({required String title, required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CustomText(
-          text: title,
-          color: AppColors.gray900,
-          size: 16,
-          weight: FontWeight.w600,
-        ),
-        Gap(2),
-        child,
-        Gap(24),
-      ],
+  Widget _buildOTPFields() {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(4, (index) {
+          return Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.gray200, width: 2),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: TextField(
+                controller: _controllers[index],
+                focusNode: _focusNodes[index],
+                textAlign: TextAlign.center,
+                maxLength: 1,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  counterText: '',
+                ),
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.gray900,
+                ),
+                onChanged: (value) {
+                  if (value.length == 1 && index < 3) {
+                    _focusNodes[index + 1].requestFocus();
+                  } else if (value.isEmpty && index > 0) {
+                    _focusNodes[index - 1].requestFocus();
+                  }
+                },
+              ),
+            ),
+          );
+        }),
+      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _instituteController.dispose();
-    _supervisorNameController.dispose();
-    _supervisorPhoneController.dispose();
-    _supervisor2NameController.dispose();
-    _supervisor2PhoneController.dispose();
-    super.dispose();
   }
 }

@@ -3,20 +3,18 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
-import 'package:rawasi_app_n/core/profile/student_profile.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
-import 'package:rawasi_app_n/features/days/data/day_lesson.dart';
-import 'package:rawasi_app_n/features/days/data/days_repo.dart';
-import 'package:rawasi_app_n/features/days/widgets/day_card_wrapper.dart';
-import 'package:rawasi_app_n/features/home/widgets/daily_progress_card.dart';
+import 'package:rawasi_app_n/features/auth/views/login_view.dart';
+import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
+import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/lesson/views/lesson_video_view.dart';
-import 'package:rawasi_app_n/features/lessons/views/lessons_view.dart';
+import 'package:rawasi_app_n/features/home/widgets/daily_progress_card.dart';
 import 'package:rawasi_app_n/root.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/day_card.dart';
 
-// ✅ إصلاح روابط الفيديو (إزالة المسافات الزائدة في النهاية)
 const String _introVideoNotSignedIn =
     'https://player.mediadelivery.net/embed/556412/ac68484d-d8bb-420e-8119-76deaccb7b75';
 const String _introVideoSignedIn =
@@ -30,43 +28,46 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  late Future<StudentAssistantData> _dataFuture;
+  late Future<_HomeData> _dataFuture;
 
-  final String _inspirationalQuote =
-      'وَمَن جَاهَدَ فَإِنَّمَا يُجَاهِدُ لِنَفْسِهِ ';
+  final String _inspirationalQuote = 'وَمَن جَاهَدَ فَإِنَّمَا يُجَاهِدُ لِنَفْسِهِ ';
 
-  // ✅ تحديث نموذج البيانات ليتضمن حالة التسجيل
-  Future<StudentAssistantData> _fetchData() async {
+  Future<_HomeData> _fetchData() async {
     final isSignedIn = await isUserSignedIn();
-    StudentProfile? profile;
-    DaysResponse? daysResponse;
-
+    Student? profile;
     if (isSignedIn) {
       try {
         profile = await ProfileRepository().fetchProfile();
-      } catch (e) {
-        // تجاهل الخطأ في البروفايل
-      }
-
-      try {
-        daysResponse = await DaysRepo().fetchDailyTasks();
-      } catch (e) {
-        // تجاهل الخطأ في الأيام
-      }
+      } catch (_) {}
     }
-
-    // ✅ إرجاع حالة التسجيل مع البيانات
-    return StudentAssistantData(
-      isSignedIn: isSignedIn,
-      profile: profile,
-      daysResponse: daysResponse,
-    );
+    return _HomeData(isSignedIn: isSignedIn, profile: profile);
   }
 
   @override
   void initState() {
     super.initState();
     _dataFuture = _fetchData();
+  }
+
+  void _goToCoursesOrSubscription(Student? profile) {
+    if (profile == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginView()),
+      );
+      return;
+    }
+    if (!profile.isUploadPaidCertificate || !profile.isActive) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SubscriptionView()),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CoursesView()),
+    );
   }
 
   @override
@@ -76,43 +77,30 @@ class _HomeViewState extends State<HomeView> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-          child: FutureBuilder<StudentAssistantData>(
+          child: FutureBuilder<_HomeData>(
             future: _dataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // ✅ تحديث القيمة الافتراضية لتشمل حالة التسجيل
               final data =
-                  snapshot.data ??
-                  StudentAssistantData(
-                    isSignedIn: false,
-                    profile: null,
-                    daysResponse: null,
-                  );
-
+                  snapshot.data ?? _HomeData(isSignedIn: false, profile: null);
               final profile = data.profile;
-              final displayName = profile != null
-                  ? '${profile.firstName} ${profile.lastName}'
-                  : 'مستخدم';
-              final currentDay = profile?.currentDay ?? 0;
-              final progress = (currentDay / 90.0).clamp(0.0, 1.0);
-              final lessons = data.daysResponse?.lessons ?? [];
+              final displayName = profile != null ? profile.fullName : 'ضيف';
+              final progress = ((profile?.progress ?? 0) / 100).clamp(0.0, 1.0);
 
               return ListView(
                 children: [
-                  // ✅ 1. بطاقة التقدم اليومي (تمت استعادتها)
                   _AnimatedItem(
                     delay: const Duration(milliseconds: 100),
                     child: DailyProgressCard(
                       name: displayName,
                       progress: progress,
+                      onContinue: () => _goToCoursesOrSubscription(profile),
                     ),
                   ),
                   const Gap(24),
-
-                  // ✅ 2. قسم "لمسة إلهام" (تمت استعادته بالكامل)
                   _AnimatedItem(
                     delay: const Duration(milliseconds: 200),
                     child: Container(
@@ -176,113 +164,9 @@ class _HomeViewState extends State<HomeView> {
                   ),
                   const Gap(24),
 
-                  // ✅ 3. قسم "رحلة رواسي" (موجود مسبقاً)
-                  _AnimatedItem(
-                    delay: const Duration(milliseconds: 300),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomText(
-                          text: 'رؤية رواسي للطالب',
-                          color: AppColors.brandPrimary,
-                          size: 16,
-                          weight: FontWeight.w600,
-                        ),
-                        const Gap(12),
-                        SizedBox(
-                          height: 80,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: 5,
-                            itemBuilder: (context, index) {
-                              final isActive = index == 0;
-                              return Container(
-                                margin: EdgeInsets.only(right: 12),
-                                width: 70,
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? AppColors.brandPrimary.withOpacity(0.15)
-                                      : AppColors.gray100,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isActive
-                                        ? AppColors.brandPrimary
-                                        : AppColors.gray200,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      _getIconForStage(index),
-                                      color: isActive
-                                          ? AppColors.brandPrimary
-                                          : AppColors.gray500,
-                                      size: 24,
-                                    ),
-                                    const Gap(4),
-                                    CustomText(
-                                      text: _getLabelForStage(index),
-                                      color: isActive
-                                          ? AppColors.brandPrimary
-                                          : AppColors.gray600,
-                                      size: 10,
-                                      weight: FontWeight.w600,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Gap(24),
-
-                  // ✅ 4. الرسالة التحفيزية (موجودة مسبقاً)
-                  _AnimatedItem(
-                    delay: const Duration(milliseconds: 400),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandPrimary.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.brandPrimary.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.nightlight_round,
-                            color: AppColors.brandPrimary,
-                            size: 24,
-                          ),
-                          const Gap(12),
-                          Expanded(
-                            child: CustomText(
-                              text:
-                                  'كل يوم جديد هو فرصة للنمو. استمر، فأنت على الطريق الصحيح.',
-                              color: AppColors.gray700,
-                              size: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Gap(24),
-
-                  // ✅ 5. تنبيه الامتحان (موجود مسبقاً)
-                  if ([9, 19, 29, 39, 49, 59, 69, 79].contains(currentDay))
+                  if (profile != null && !profile.isActive)
                     _AnimatedItem(
-                      delay: const Duration(milliseconds: 500),
+                      delay: const Duration(milliseconds: 300),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -292,30 +176,21 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppColors.warning700,
-                            ),
+                            Icon(Icons.info_outline, color: AppColors.warning700),
                             const Gap(10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   CustomText(
-                                    text: 'هناك امتحان قادم في طريق',
+                                    text: !profile.isProfileCompleted
+                                        ? 'يرجى استكمال بيانات ملفك الشخصي'
+                                        : !profile.isUploadPaidCertificate
+                                        ? 'يرجى رفع إيصال الدفع لتفعيل اشتراكك'
+                                        : 'حسابك قيد المراجعة من الإدارة',
                                     color: AppColors.warning700,
                                     weight: FontWeight.w600,
-                                    size: 16,
-                                  ),
-                                  const Gap(4),
-                                  GestureDetector(
-                                    onTap: () {},
-                                    child: CustomText(
-                                      text: 'حدد الموعد الآن',
-                                      color: AppColors.warning700,
-                                      size: 14,
-                                      weight: FontWeight.w600,
-                                    ),
+                                    size: 15,
                                   ),
                                 ],
                               ),
@@ -326,11 +201,10 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   const Gap(24),
 
-                  // ✅ 6. عنوان سجل الدروس اليومي
                   Align(
                     alignment: Alignment.centerRight,
                     child: CustomText(
-                      text: 'سجل الدروس اليومي',
+                      text: 'ابدأ رحلتك التعليمية',
                       color: AppColors.brandPrimary,
                       size: 18,
                       weight: FontWeight.w600,
@@ -338,20 +212,17 @@ class _HomeViewState extends State<HomeView> {
                   ),
                   const Gap(16),
 
-                  // ✅ 7. الدرس التمهيدي (معدل ليدعم الفيديو المخصص)
                   _AnimatedItem(
-                    delay: const Duration(milliseconds: 600),
+                    delay: const Duration(milliseconds: 400),
                     child: DayCard(
                       title: 'الدرس التمهيدي',
                       subtitle: 'تعرف على رواسي',
-                      isCompleted: currentDay > 0,
+                      isCompleted: false,
                       showStartButton: true,
                       onPressed: () {
-                        // ✅ اختيار رابط الفيديو حسب حالة التسجيل (بدون مسافات زائدة)
                         final videoUrl = data.isSignedIn
-                            ? _introVideoSignedIn.trim()
-                            : _introVideoNotSignedIn.trim();
-
+                            ? _introVideoSignedIn
+                            : _introVideoNotSignedIn;
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -362,31 +233,16 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                   const Gap(12),
-
-                  // ✅ 8. الأيام الديناميكية
-                  if (lessons.isEmpty &&
-                      snapshot.connectionState == ConnectionState.done)
-                    const Center(child: Text('لا توجد أيام متاحة')),
-                  for (int i = 0; i < lessons.length; i++)
-                    _AnimatedItem(
-                      delay: Duration(milliseconds: 650 + i * 50),
-                      child: DayCardWrapper(
-                        lesson: lessons[i],
-                        onTap: lessons[i].isTappable
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => LessonsView(
-                                      dayId: lessons[i].dayNumber,
-                                      dayTitle: lessons[i].title,
-                                    ),
-                                  ),
-                                );
-                              }
-                            : null,
-                      ),
+                  _AnimatedItem(
+                    delay: const Duration(milliseconds: 500),
+                    child: DayCard(
+                      title: 'المواد الدراسية',
+                      subtitle: 'تصفح الدروس والأسئلة',
+                      isCompleted: false,
+                      showStartButton: true,
+                      onPressed: () => _goToCoursesOrSubscription(profile),
                     ),
+                  ),
                 ],
               );
             },
@@ -396,45 +252,15 @@ class _HomeViewState extends State<HomeView> {
       bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 0),
     );
   }
-
-  IconData _getIconForStage(int index) {
-    switch (index) {
-      case 0:
-        return Icons.rocket_launch_outlined; // انطلق
-      case 1:
-        return Icons.menu_book_outlined; // ذاكر
-      case 2:
-        return Icons.fact_check_outlined; // ثبت
-      case 3:
-        return Icons.edit_note_outlined; // حل
-      case 4:
-        return Icons.emoji_events_outlined; // قفّل (القمة)
-      default:
-        return Icons.circle_outlined;
-    }
-  }
-
-  String _getLabelForStage(int index) {
-    // الكلمات الحماسية (أكشن) مرتبة لتناسب مسار الطالب
-    final labels = ['انطلق', 'ذاكر', 'ثبت', 'حل', 'قفّل'];
-    return labels[index % labels.length];
-  }
 }
 
-// ========== نموذج مساعد لجمع البيانات ==========
-class StudentAssistantData {
-  final bool isSignedIn; // ✅ الإضافة الجديدة
-  final StudentProfile? profile;
-  final DaysResponse? daysResponse;
+class _HomeData {
+  final bool isSignedIn;
+  final Student? profile;
 
-  StudentAssistantData({
-    required this.isSignedIn,
-    required this.profile,
-    required this.daysResponse,
-  });
+  _HomeData({required this.isSignedIn, required this.profile});
 }
 
-// ========== Widget مساعد للحركات البسيطة بدون Controller ==========
 class _AnimatedItem extends StatefulWidget {
   final Widget child;
   final Duration delay;

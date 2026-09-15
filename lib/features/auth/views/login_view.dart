@@ -7,6 +7,9 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/views/forget_password/forgot_password_phone_view.dart';
+import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
+import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/shared/custom-snack.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
@@ -69,13 +72,28 @@ class _LoginViewState extends State<LoginView> {
         loginController.text.trim(),
         passwordController.text.trim(),
       );
-      if (user != null) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (c) => const HomeView()),
-          (Route<dynamic> route) => false,
+      if (!mounted) return;
+
+      Widget destination;
+      if (!user.isProfileCompleted) {
+        destination = RegisterStep4View(
+          registrationData: RegistrationData(
+            academicYear: user.academicYear,
+            planId: user.planId ?? 0,
+            phone1: user.phone1,
+          ),
         );
+      } else if (!user.isUploadPaidCertificate || !user.isActive) {
+        destination = const SubscriptionView();
+      } else {
+        destination = const HomeView();
       }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (c) => destination),
+        (Route<dynamic> route) => false,
+      );
     } catch (e) {
       String errorMessage = "حدث خطأ غير متوقع";
       if (e is ApiError) {
