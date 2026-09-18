@@ -10,6 +10,7 @@ import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
 import 'package:rawasi_app_n/features/auth/views/upload_certificate_view.dart';
+import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/shared/custom_dropdown.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/custom_text_field.dart';
@@ -123,7 +124,7 @@ class _RegisterStep5ViewState extends State<RegisterStep5View> {
       }
 
       final data = widget.registrationData;
-      await _authRepo.completeProfile(
+      final student = await _authRepo.completeProfile(
         firstName: data.firstName,
         lastName: data.lastName,
         gender: data.gender,
@@ -152,15 +153,19 @@ class _RegisterStep5ViewState extends State<RegisterStep5View> {
       );
 
       if (!mounted) return;
+      // A student completing their profile later (from the home banner) may have
+      // already paid, so only send them to the upload screen if they still owe it.
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => UploadCertificateView(
-            planId: data.planId,
-            planName: '',
-            planPrice: 0,
-            hasDiscount: false,
-          ),
+          builder: (context) => student.isUploadPaidCertificate
+              ? const HomeView()
+              : UploadCertificateView(
+                  planId: student.planId ?? data.planId,
+                  planName: '',
+                  planPrice: 0,
+                  hasDiscount: false,
+                ),
         ),
         (route) => false,
       );

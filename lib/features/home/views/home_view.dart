@@ -6,7 +6,9 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
 import 'package:rawasi_app_n/features/auth/views/login_view.dart';
+import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
 import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/lesson/views/lesson_video_view.dart';
@@ -49,25 +51,55 @@ class _HomeViewState extends State<HomeView> {
     _dataFuture = _fetchData();
   }
 
-  void _goToCoursesOrSubscription(Student? profile) {
+  void _refresh() {
+    setState(() {
+      _dataFuture = _fetchData();
+    });
+  }
+
+  /// Opens the step the student still owes: complete-profile, then payment
+  /// certificate, then admin activation.
+  Future<void> _openPendingStep(Student profile) async {
+    final Widget destination;
+    if (!profile.isProfileCompleted) {
+      destination = RegisterStep4View(
+        registrationData: RegistrationData(
+          academicYear: profile.academicYear,
+          planId: profile.planId ?? 0,
+          phone1: profile.phone1,
+        ),
+      );
+    } else {
+      destination = const SubscriptionView();
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+    );
+    _refresh();
+  }
+
+  Future<void> _goToCoursesOrSubscription(Student? profile) async {
     if (profile == null) {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginView()),
       );
+      _refresh();
       return;
     }
-    if (!profile.isUploadPaidCertificate || !profile.isActive) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SubscriptionView()),
-      );
+    if (!profile.isProfileCompleted ||
+        !profile.isUploadPaidCertificate ||
+        !profile.isActive) {
+      await _openPendingStep(profile);
       return;
     }
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CoursesView()),
     );
+    _refresh();
   }
 
   @override
@@ -167,36 +199,9 @@ class _HomeViewState extends State<HomeView> {
                   if (profile != null && !profile.isActive)
                     _AnimatedItem(
                       delay: const Duration(milliseconds: 300),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.warning50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.warning300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: AppColors.warning700),
-                            const Gap(10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CustomText(
-                                    text: !profile.isProfileCompleted
-                                        ? 'يرجى استكمال بيانات ملفك الشخصي'
-                                        : !profile.isUploadPaidCertificate
-                                        ? 'يرجى رفع إيصال الدفع لتفعيل اشتراكك'
-                                        : 'حسابك قيد المراجعة من الإدارة',
-                                    color: AppColors.warning700,
-                                    weight: FontWeight.w600,
-                                    size: 15,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: _PendingStepBanner(
+                        profile: profile,
+                        onTap: () => _openPendingStep(profile),
                       ),
                     ),
                   const Gap(24),
@@ -259,6 +264,84 @@ class _HomeData {
   final Student? profile;
 
   _HomeData({required this.isSignedIn, required this.profile});
+}
+
+/// Warns about the next onboarding step the student owes, and opens it on tap.
+/// While waiting on admin activation there is nothing to open, so it stays flat.
+class _PendingStepBanner extends StatelessWidget {
+  final Student profile;
+  final VoidCallback onTap;
+
+  const _PendingStepBanner({required this.profile, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isActionable =
+        !profile.isProfileCompleted || !profile.isUploadPaidCertificate;
+
+    final String title = !profile.isProfileCompleted
+        ? 'يرجى استكمال بيانات ملفك الشخصي'
+        : !profile.isUploadPaidCertificate
+        ? 'يرجى رفع إيصال الدفع لتفعيل اشتراكك'
+        : 'حسابك قيد المراجعة من الإدارة';
+
+    final Widget content = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: AppColors.warning700),
+          const Gap(10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomText(
+                  text: title,
+                  color: AppColors.warning700,
+                  weight: FontWeight.w600,
+                  size: 15,
+                ),
+                if (isActionable) ...[
+                  const Gap(4),
+                  CustomText(
+                    text: 'اضغط هنا للمتابعة',
+                    color: AppColors.warning700,
+                    size: 13,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (isActionable)
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: AppColors.warning700,
+            ),
+        ],
+      ),
+    );
+
+    final decoration = BoxDecoration(
+      color: AppColors.warning50,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.warning300),
+    );
+
+    if (!isActionable) {
+      return Container(decoration: decoration, child: content);
+    }
+
+    return Material(
+      color: AppColors.warning50,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(decoration: decoration, child: content),
+      ),
+    );
+  }
 }
 
 class _AnimatedItem extends StatefulWidget {
