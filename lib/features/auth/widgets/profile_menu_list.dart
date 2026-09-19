@@ -7,6 +7,7 @@ import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/auth/widgets/profile_menu_item.dart';
 import 'package:rawasi_app_n/features/contact/views/contact_view.dart';
 import 'package:rawasi_app_n/features/contact/views/faq_view.dart';
+import 'package:rawasi_app_n/features/stats/views/statistics_view.dart';
 
 class ProfileMenuList extends StatelessWidget {
   final VoidCallback onLogout;
@@ -117,6 +118,17 @@ class ProfileMenuList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       children: [
+        ProfileMenuItem(
+          title1: "إحصائياتي",
+          icon: Icons.bar_chart,
+          iconColor: AppColors.brandSecondary,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const StatisticsView()),
+            );
+          },
+        ),
         ProfileMenuItem(
           title1: "الاعدادات و كلمة السر",
           icon: Icons.lock_outline,
