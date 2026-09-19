@@ -1,9 +1,6 @@
 // lib/features/splash/splash_view.dart
 
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
-import 'package:rawasi_app_n/core/constants/app_colors.dart';
-import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/home/views/home_view.dart';
 
 class SplashView extends StatefulWidget {
@@ -47,23 +44,17 @@ class _SplashViewState extends State<SplashView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.forward();
 
-      Future.delayed(const Duration(seconds: 3), () async {
+      Future.delayed(const Duration(seconds: 3), () {
         if (!mounted) return;
 
-        final isSignedIn = await isUserSignedIn();
-
-        Widget destination;
-        if (isSignedIn) {
-          destination = const HomeView();
-        } else {
-          destination = const HomeView();
-        }
-
+        // Deliberately not awaiting anything before navigating. This used to
+        // await the stored-token check, so a storage failure threw here and the
+        // app never left the splash. HomeView reads the session itself.
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                destination,
+                const HomeView(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
                   return SlideTransition(
