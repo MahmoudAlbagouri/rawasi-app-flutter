@@ -6,7 +6,7 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
-import 'package:rawasi_app_n/features/courses/views/lesson_questions_view.dart';
+import 'package:rawasi_app_n/features/courses/views/lesson_flow_view.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class CourseLessonsView extends StatefulWidget {
@@ -114,7 +114,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => LessonQuestionsView(
+                  builder: (_) => LessonFlowView(
                     lessonId: lesson.id,
                     courseId: widget.courseId,
                     lessonTitle: lesson.title,
