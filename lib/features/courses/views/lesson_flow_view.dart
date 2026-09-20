@@ -79,19 +79,20 @@ class _LessonFlowViewState extends State<LessonFlowView> {
       final questions = await _repo.fetchQuestions(widget.lessonId);
       if (!mounted) return;
 
-      // Questions already completed in an earlier sitting are "سهل" already;
-      // only the outstanding ones are worth walking through again.
-      final pending = questions.where((q) => !q.isCompleted).toList();
-      _easyCount = questions.length - pending.length;
-
-      if (pending.isEmpty) {
+      // Every question is replayed, completed ones included: a lesson can be
+      // re-solved as often as the student likes. The complete calls it makes
+      // are no-ops server-side for already-recorded questions, so a replay
+      // never changes progress, statistics or unlocks.
+      if (questions.isEmpty) {
         await _finish();
         return;
       }
 
       setState(() {
-        _pass = pending;
+        _pass = questions;
         _index = 0;
+        _easyCount = 0;
+        _reviewQueue.clear();
         _answerShown = false;
         _phase = _Phase.question;
       });
@@ -788,7 +789,7 @@ class _LessonFlowViewState extends State<LessonFlowView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CustomText(
-                          text: 'تم فتح الدرس التالي',
+                          text: 'الدرس التالي متاح لك',
                           color: AppColors.success700,
                           size: 14,
                           weight: FontWeight.bold,

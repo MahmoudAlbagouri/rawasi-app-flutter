@@ -185,7 +185,7 @@ class _CoursesViewState extends State<CoursesView> {
                 color: AppColors.brandPrimary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.menu_book, color: AppColors.brandPrimary),
+              child: Icon(course.icon, color: AppColors.brandPrimary),
             ),
             const Gap(16),
             Expanded(

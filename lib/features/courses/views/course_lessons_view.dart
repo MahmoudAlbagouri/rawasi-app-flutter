@@ -173,6 +173,23 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                       color: AppColors.gray600,
                       size: 12,
                     ),
+                    // A completed lesson can be re-solved any number of times;
+                    // repeats are not recorded, so this changes nothing.
+                    if (lesson.isCompleted) ...[
+                      const Gap(6),
+                      Row(
+                        children: [
+                          Icon(Icons.replay, size: 16, color: AppColors.brandPrimary),
+                          const Gap(4),
+                          CustomText(
+                            text: 'حل مرة أخرى',
+                            color: AppColors.brandPrimary,
+                            size: 13,
+                            weight: FontWeight.w600,
+                          ),
+                        ],
+                      ),
+                    ],
                   ] else if (lesson.autoUnlockDeadline != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
