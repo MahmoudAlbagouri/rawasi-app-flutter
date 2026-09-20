@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/auth/views/change_password_view.dart';
+import 'package:rawasi_app_n/features/auth/views/student_details_view.dart';
 import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/auth/widgets/profile_menu_item.dart';
 import 'package:rawasi_app_n/features/contact/views/contact_view.dart';
@@ -118,6 +119,17 @@ class ProfileMenuList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       children: [
+        ProfileMenuItem(
+          title1: "بياناتي",
+          icon: Icons.badge_outlined,
+          iconColor: AppColors.brandSecondary,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const StudentDetailsView()),
+            );
+          },
+        ),
         ProfileMenuItem(
           title1: "إحصائياتي",
           icon: Icons.bar_chart,
