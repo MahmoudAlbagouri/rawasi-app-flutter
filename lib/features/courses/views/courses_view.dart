@@ -153,6 +153,8 @@ class _CoursesViewState extends State<CoursesView> {
   }
 
   Widget _courseCard(Course course) {
+    final progress = course.progress;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -164,7 +166,7 @@ class _CoursesViewState extends State<CoursesView> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
@@ -176,32 +178,100 @@ class _CoursesViewState extends State<CoursesView> {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.brandPrimary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(course.icon, color: AppColors.brandPrimary),
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.brandPrimary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(course.icon, color: AppColors.brandPrimary),
+                ),
+                const Gap(16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CustomText(
+                        text: course.name,
+                        color: AppColors.gray900,
+                        size: 17,
+                        weight: FontWeight.w600,
+                      ),
+                      if (progress != null) ...[
+                        const Gap(6),
+                        Row(
+                          children: [
+                            Icon(Icons.menu_book_outlined, size: 15, color: AppColors.gray500),
+                            const Gap(4),
+                            CustomText(
+                              text: '${progress.totalLessons} درس',
+                              color: AppColors.gray600,
+                              size: 12,
+                            ),
+                            const Gap(12),
+                            Icon(Icons.check_circle_outline, size: 15, color: AppColors.gray500),
+                            const Gap(4),
+                            CustomText(
+                              text: 'أكملت ${progress.completedLessons}',
+                              color: AppColors.gray600,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.gray400),
+              ],
             ),
-            const Gap(16),
-            Expanded(
-              child: CustomText(
-                text: course.name,
-                color: AppColors.gray900,
-                size: 17,
-                weight: FontWeight.w600,
+            if (progress != null) ...[
+              const Gap(14),
+              Row(
+                children: [
+                  CustomText(
+                    text: 'التقدم',
+                    color: AppColors.gray700,
+                    size: 13,
+                    weight: FontWeight.w600,
+                  ),
+                  const Spacer(),
+                  CustomText(
+                    text: '${_trimPercent(progress.percentage)}%',
+                    color: AppColors.gray900,
+                    size: 13,
+                    weight: FontWeight.bold,
+                  ),
+                ],
               ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.gray400),
+              const Gap(6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progress.fraction,
+                  minHeight: 7,
+                  backgroundColor: AppColors.gray200,
+                  color: progress.fraction >= 1
+                      ? AppColors.success600
+                      : AppColors.brandPrimary,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  /// 40.0 → "40", 2.6 → "2.6".
+  String _trimPercent(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
   Widget _buildLoginRequired() {
     return _buildMessage(

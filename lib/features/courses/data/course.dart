@@ -9,21 +9,29 @@ class Course {
   /// "1" | "2" for a term course; null for a whole-year course (all of grade 3).
   final String? term;
 
+  /// The student's completion in this course. Null only if the API omitted it.
+  final CourseProgress? progress;
+
   Course({
     required this.id,
     required this.name,
     required this.academicYear,
     required this.madhab,
     this.term,
+    this.progress,
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
+    final progress = json['progress'];
     return Course(
       id: json['id'] as int? ?? 0,
       name: json['name']?.toString() ?? '',
       academicYear: json['academic_year']?.toString() ?? 'all',
       madhab: json['madhab']?.toString() ?? 'all',
       term: json['term']?.toString(),
+      progress: progress is Map
+          ? CourseProgress.fromJson(Map<String, dynamic>.from(progress))
+          : null,
     );
   }
 
@@ -53,4 +61,33 @@ class Course {
         .replaceAll('ى', 'ي'); // ى → ي
     return stripped.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
+}
+
+/// Completion in one course. [totalLessons] is the curriculum figure for the
+/// subject, not how many lessons are uploaded so far ([availableLessons]).
+class CourseProgress {
+  final int completedLessons;
+  final int totalLessons;
+  final int availableLessons;
+  final double percentage;
+
+  CourseProgress({
+    required this.completedLessons,
+    required this.totalLessons,
+    required this.availableLessons,
+    required this.percentage,
+  });
+
+  factory CourseProgress.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+    final pct = json['percentage'];
+    return CourseProgress(
+      completedLessons: toInt(json['completed_lessons']),
+      totalLessons: toInt(json['total_lessons']),
+      availableLessons: toInt(json['available_lessons']),
+      percentage: pct is num ? pct.toDouble() : double.tryParse('$pct') ?? 0,
+    );
+  }
+
+  double get fraction => (percentage / 100).clamp(0.0, 1.0);
 }
