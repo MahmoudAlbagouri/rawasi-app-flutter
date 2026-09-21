@@ -162,17 +162,47 @@ class Leaderboard {
   final int? myRank;
   final int myPoints;
 
-  Leaderboard({required this.top, this.myRank, required this.myPoints});
+  /// The cohort this board ranks: the student's academic year and, for the
+  /// termed grades, their term. Grade 3 has no terms, so [scopeTerm] is null.
+  final String scopeYear;
+  final String? scopeTerm;
+
+  Leaderboard({
+    required this.top,
+    this.myRank,
+    required this.myPoints,
+    required this.scopeYear,
+    this.scopeTerm,
+  });
 
   factory Leaderboard.fromJson(Map<String, dynamic> json) {
-    final me = (json['me'] ?? const {}) as Map<String, dynamic>;
+    final me = Map<String, dynamic>.from(json['me'] as Map? ?? const {});
+    final scope = Map<String, dynamic>.from(json['scope'] as Map? ?? const {});
     return Leaderboard(
       top: ((json['top'] ?? []) as List)
           .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
       myRank: me['rank'] == null ? null : _int(me['rank']),
       myPoints: _int(me['points']),
+      scopeYear: scope['academic_year']?.toString() ?? '',
+      scopeTerm: scope['term']?.toString(),
     );
+  }
+
+  /// "الصف الأول الثانوي — الفصل الأول"
+  String get scopeLabel {
+    final year = switch (scopeYear) {
+      '1' => 'الصف الأول الثانوي',
+      '2' => 'الصف الثاني الثانوي',
+      '3' => 'الصف الثالث الثانوي',
+      _ => 'صفّك الدراسي',
+    };
+    final term = switch (scopeTerm) {
+      '1' => ' — الفصل الأول',
+      '2' => ' — الفصل الثاني',
+      _ => '',
+    };
+    return '$year$term';
   }
 }
 
@@ -180,12 +210,14 @@ class LeaderboardEntry {
   final int rank;
   final String name;
   final int points;
+  final int completedLessons;
   final bool isCurrentStudent;
 
   LeaderboardEntry({
     required this.rank,
     required this.name,
     required this.points,
+    required this.completedLessons,
     required this.isCurrentStudent,
   });
 
@@ -193,6 +225,7 @@ class LeaderboardEntry {
         rank: _int(json['rank']),
         name: json['name']?.toString() ?? 'طالب',
         points: _int(json['points']),
+        completedLessons: _int(json['completed_lessons']),
         isCurrentStudent: json['is_current_student'] == true,
       );
 }

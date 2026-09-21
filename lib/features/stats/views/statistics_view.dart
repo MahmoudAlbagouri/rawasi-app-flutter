@@ -80,13 +80,22 @@ class _StatisticsViewState extends State<StatisticsView> {
                   const Gap(16),
                   _pacingCard(stats.pacing),
                   const Gap(20),
-                  _sectionTitle('المواد'),
+                  _sectionTitle('تقدم المواد'),
                   const Gap(12),
-                  ...stats.subjects.map(_subjectCard),
+                  _subjectsGrid(stats.subjects),
                   const Gap(20),
-                  _sectionTitle('أول عشرة'),
+                  _sectionTitle('لوحة المتصدرين'),
+                  const Gap(4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: CustomText(
+                      text: 'أول عشرة في ${stats.leaderboard.scopeLabel}',
+                      color: AppColors.gray600,
+                      size: 13,
+                    ),
+                  ),
                   const Gap(12),
-                  _leaderboardCard(stats.leaderboard),
+                  _leaderboardCard(stats.leaderboard, myCompletedLessons: stats.completion.completedLessons),
                   const Gap(24),
                 ],
               ),
@@ -336,75 +345,190 @@ class _StatisticsViewState extends State<StatisticsView> {
   // 2. Per-subject progress
   // ---------------------------------------------------------------------------
 
+  /// One column on phones, two side by side once there is room.
+  Widget _subjectsGrid(List<SubjectProgress> subjects) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 600 ? 2 : 1;
+        const spacing = 12.0;
+        final width = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final s in subjects)
+              SizedBox(width: width, child: _subjectCard(s)),
+          ],
+        );
+      },
+    );
+  }
+
+  /// A course card in the style of the reference: a banner carrying the subject
+  /// name, then the name again with its lesson count, and a labelled progress
+  /// bar. Totals are the curriculum figures, so a subject with little uploaded
+  /// content still shows its true denominator.
   Widget _subjectCard(SubjectProgress s) {
     final fraction = (s.percentage / 100).clamp(0.0, 1.0);
+    final accent = _subjectAccent(s.key);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _card(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: CustomText(
-                    text: s.label,
-                    color: AppColors.gray900,
-                    size: 15,
-                    weight: FontWeight.w600,
-                  ),
-                ),
-                CustomText(
-                  text: '${_trim(s.percentage)}%',
-                  color: AppColors.brandPrimary,
-                  size: 14,
-                  weight: FontWeight.bold,
-                ),
-              ],
-            ),
-            const Gap(10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: fraction,
-                minHeight: 8,
-                backgroundColor: AppColors.gray200,
-                color: AppColors.brandPrimary,
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.gray200),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.gray200.withOpacity(0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Banner — stands in for the course image.
+          Container(
+            height: 110,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [accent.withOpacity(0.18), accent.withOpacity(0.04)],
               ),
             ),
-            const Gap(8),
-            Row(
+            child: Stack(
               children: [
-                CustomText(
-                  text:
-                      '${s.completedLessons} من ${s.totalLessons} ${s.unitLabel}',
-                  color: AppColors.gray700,
-                  size: 12,
+                Positioned(
+                  top: -18,
+                  left: -18,
+                  child: Icon(_subjectIcon(s.key), size: 96, color: accent.withOpacity(0.12)),
                 ),
-                const Spacer(),
-                // Content is still being uploaded, so say how much a student can
-                // actually reach today rather than implying the rest is missing.
-                if (s.availableLessons < s.totalLessons)
-                  CustomText(
-                    text: 'المتاح الآن: ${s.availableLessons}',
-                    color: AppColors.gray500,
-                    size: 12,
+                Center(
+                  child: Text(
+                    s.label,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
                   ),
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomText(
+                  text: s.label,
+                  color: AppColors.gray900,
+                  size: 16,
+                  weight: FontWeight.bold,
+                ),
+                const Gap(8),
+                Row(
+                  children: [
+                    Icon(Icons.menu_book_outlined, size: 16, color: AppColors.gray500),
+                    const Gap(4),
+                    CustomText(
+                      text: '${s.totalLessons} ${s.unitLabel}',
+                      color: AppColors.gray600,
+                      size: 12,
+                    ),
+                    const Gap(14),
+                    Icon(Icons.check_circle_outline, size: 16, color: AppColors.gray500),
+                    const Gap(4),
+                    CustomText(
+                      text: 'أكملت ${s.completedLessons}',
+                      color: AppColors.gray600,
+                      size: 12,
+                    ),
+                    if (s.availableLessons < s.totalLessons) ...[
+                      const Spacer(),
+                      // Content is still being uploaded; say what is reachable
+                      // today instead of implying the rest is missing.
+                      CustomText(
+                        text: 'المتاح ${s.availableLessons}',
+                        color: AppColors.gray400,
+                        size: 11,
+                      ),
+                    ],
+                  ],
+                ),
+                const Gap(14),
+                Row(
+                  children: [
+                    CustomText(
+                      text: 'التقدم',
+                      color: AppColors.gray700,
+                      size: 13,
+                      weight: FontWeight.w600,
+                    ),
+                    const Spacer(),
+                    CustomText(
+                      text: '${_trim(s.percentage)}%',
+                      color: AppColors.gray900,
+                      size: 13,
+                      weight: FontWeight.bold,
+                    ),
+                  ],
+                ),
+                const Gap(8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: fraction,
+                    minHeight: 8,
+                    backgroundColor: AppColors.gray200,
+                    color: accent,
+                  ),
+                ),
+                const Gap(6),
+                CustomText(
+                  text: '${s.completedLessons} من ${s.totalLessons} ${s.unitLabel}',
+                  color: AppColors.gray500,
+                  size: 11,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  IconData _subjectIcon(String key) => switch (key) {
+        'quran' => Icons.auto_stories,
+        'fiqh_hanafi' || 'fiqh_shafii' => Icons.balance,
+        'tafseer' => Icons.manage_search,
+        'hadith' => Icons.format_quote,
+        'tawheed' => Icons.star,
+        'inheritance' => Icons.account_tree,
+        _ => Icons.menu_book,
+      };
+
+  Color _subjectAccent(String key) => switch (key) {
+        'quran' => const Color(0xFF2E7D32),
+        'fiqh_hanafi' || 'fiqh_shafii' => const Color(0xFF6D4C41),
+        'tafseer' => const Color(0xFF8D5A3B),
+        'hadith' => const Color(0xFF1565C0),
+        'tawheed' => const Color(0xFF6A1B9A),
+        'inheritance' => const Color(0xFF00695C),
+        _ => AppColors.brandPrimary,
+      };
 
   // ---------------------------------------------------------------------------
   // 6. Leaderboard
   // ---------------------------------------------------------------------------
 
-  Widget _leaderboardCard(Leaderboard board) {
+  Widget _leaderboardCard(Leaderboard board, {required int myCompletedLessons}) {
     if (board.top.isEmpty) {
       return _card(
         child: CustomText(
@@ -428,6 +552,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                 rank: board.myRank!,
                 name: 'ترتيبك',
                 points: board.myPoints,
+                completedLessons: myCompletedLessons,
                 isCurrentStudent: true,
               ),
             ),
@@ -473,11 +598,21 @@ class _StatisticsViewState extends State<StatisticsView> {
           ),
           const Gap(12),
           Expanded(
-            child: CustomText(
-              text: e.name,
-              color: AppColors.gray900,
-              size: 14,
-              weight: e.isCurrentStudent ? FontWeight.bold : FontWeight.w500,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomText(
+                  text: e.name,
+                  color: AppColors.gray900,
+                  size: 14,
+                  weight: e.isCurrentStudent ? FontWeight.bold : FontWeight.w500,
+                ),
+                CustomText(
+                  text: '${e.completedLessons} درس مكتمل',
+                  color: AppColors.gray500,
+                  size: 11,
+                ),
+              ],
             ),
           ),
           CustomText(
