@@ -7,13 +7,16 @@ import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_draft.dart';
 import 'package:rawasi_app_n/features/auth/views/login_view.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
-import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/lesson/views/lesson_video_view.dart';
 import 'package:rawasi_app_n/features/home/widgets/daily_progress_card.dart';
 import 'package:rawasi_app_n/root.dart';
+import 'package:rawasi_app_n/features/contact/views/intro_video_view.dart';
+import 'package:rawasi_app_n/shared/auth_actions.dart';
+import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/day_card.dart';
@@ -32,6 +35,10 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   late Future<_HomeData> _dataFuture;
+
+  /// Per-session dismissal of the intro card. Deliberately not persisted and
+  /// deliberately not a dialog: it must never block the UI on first launch.
+  bool _introDismissed = false;
 
   final String _inspirationalQuote = 'وَمَن جَاهَدَ فَإِنَّمَا يُجَاهِدُ لِنَفْسِهِ ';
 
@@ -58,25 +65,26 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
-  /// Opens the step the student still owes: complete-profile, then payment
-  /// certificate, then admin activation.
+  /// Opens the one step a student can still act on: finishing their profile.
+  ///
+  /// free first month: there is no payment step any more, so once the profile
+  /// is complete there is nothing to open - the account simply waits for an
+  /// admin, and the banner says so without being tappable.
   Future<void> _openPendingStep(Student profile) async {
-    final Widget destination;
-    if (!profile.isProfileCompleted) {
-      destination = RegisterStep4View(
-        registrationData: RegistrationData(
-          academicYear: profile.academicYear,
-          planId: profile.planId ?? 0,
-          phone1: profile.phone1,
-        ),
-      );
-    } else {
-      destination = const SubscriptionView();
-    }
+    if (profile.isProfileCompleted) return;
 
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => destination),
+      MaterialPageRoute(
+        builder: (_) => RegisterStep4View(
+          draft: RegistrationDraft(
+            RegistrationData(
+              academicYear: profile.academicYear,
+              phone1: profile.phone1,
+            ),
+          ),
+        ),
+      ),
     );
     _refresh();
   }
@@ -90,9 +98,8 @@ class _HomeViewState extends State<HomeView> {
       _refresh();
       return;
     }
-    if (!profile.isProfileCompleted ||
-        !profile.isUploadPaidCertificate ||
-        !profile.isActive) {
+    // One shared decision, so courses/library/home cannot disagree.
+    if (gateFor(profile) != null) {
       await _openPendingStep(profile);
       return;
     }
@@ -198,7 +205,53 @@ class _HomeViewState extends State<HomeView> {
                   ),
                   const Gap(24),
 
-                  if (profile != null && !profile.isActive)
+                  // Signed out: offer both ways in, with the same pair and
+                  // hierarchy as every other pre-auth surface.
+                  if (!data.isSignedIn) ...[
+                    _AnimatedItem(
+                      delay: const Duration(milliseconds: 250),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.primary100),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            CustomText(
+                              text: 'ابدأ رحلتك مع رواسي',
+                              color: AppColors.gray900,
+                              size: 16,
+                              weight: FontWeight.bold,
+                            ),
+                            const Gap(4),
+                            CustomText(
+                              text: 'الشهر الأول مجانًا، بدون أي رسوم.',
+                              color: AppColors.gray600,
+                              size: 13,
+                            ),
+                            const Gap(14),
+                            const AuthActions(primary: AuthAction.register),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Gap(24),
+                  ],
+
+                  if (!_introDismissed)
+                    _AnimatedItem(
+                      delay: const Duration(milliseconds: 280),
+                      child: _IntroVideoCard(
+                        onDismiss: () =>
+                            setState(() => _introDismissed = true),
+                      ),
+                    ),
+                  if (!_introDismissed) const Gap(24),
+
+                  if (profile != null && gateFor(profile) != null)
                     _AnimatedItem(
                       delay: const Duration(milliseconds: 300),
                       child: _PendingStepBanner(
@@ -279,14 +332,14 @@ class _PendingStepBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isActionable =
-        !profile.isProfileCompleted || !profile.isUploadPaidCertificate;
+    // free first month: the only actionable blocker left is an unfinished
+    // profile. Everything else is "waiting on the admin", worded exactly as
+    // the shared AccountGate and CheckStudentActive word it.
+    final bool isActionable = !profile.isProfileCompleted;
 
-    final String title = !profile.isProfileCompleted
+    final String title = isActionable
         ? 'يرجى استكمال بيانات ملفك الشخصي'
-        : !profile.isUploadPaidCertificate
-        ? 'يرجى رفع إيصال الدفع لتفعيل اشتراكك'
-        : 'حسابك قيد المراجعة من الإدارة';
+        : AccountGate.underReviewTitle;
 
     final Widget content = Padding(
       padding: const EdgeInsets.all(16),
@@ -304,14 +357,14 @@ class _PendingStepBanner extends StatelessWidget {
                   weight: FontWeight.w600,
                   size: 15,
                 ),
-                if (isActionable) ...[
-                  const Gap(4),
-                  CustomText(
-                    text: 'اضغط هنا للمتابعة',
-                    color: AppColors.warning700,
-                    size: 13,
-                  ),
-                ],
+                const Gap(4),
+                CustomText(
+                  text: isActionable
+                      ? 'اضغط هنا للمتابعة'
+                      : AccountGate.underReviewBody,
+                  color: AppColors.warning700,
+                  size: 13,
+                ),
               ],
             ),
           ),
@@ -342,6 +395,91 @@ class _PendingStepBanner extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Ink(decoration: decoration, child: content),
+      ),
+    );
+  }
+}
+
+/// Dismissible pointer to the intro video and support.
+///
+/// Renders whether or not AppConstants.introVideoUrl is set - the destination
+/// screen handles the empty case - so the card never links to a dead player.
+class _IntroVideoCard extends StatelessWidget {
+  final VoidCallback onDismiss;
+
+  const _IntroVideoCard({required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.ondemand_video_outlined,
+                color: AppColors.brandPrimary,
+              ),
+              const Gap(10),
+              Expanded(
+                child: CustomText(
+                  text: IntroVideoView.title,
+                  color: AppColors.brandPrimary,
+                  size: 15,
+                  weight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                tooltip: 'إخفاء',
+                onPressed: onDismiss,
+                icon: const Icon(Icons.close, size: 18, color: AppColors.gray600),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, left: 8),
+            child: CustomText(
+              text: 'تعرّف على طريقة استخدام التطبيق وكيفية التواصل مع الدعم.',
+              color: AppColors.gray700,
+              size: 13,
+            ),
+          ),
+          const Gap(12),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, left: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const IntroVideoView()),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.brandPrimary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text(
+                  'مشاهدة',
+                  style: TextStyle(
+                    color: AppColors.brandPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -20,6 +20,11 @@ import 'package:rawasi_app_n/shared/custom_text.dart';
 /// case here — steps 4 and 5 run after check-otp issued a token), login
 /// otherwise. `pushAndRemoveUntil` so back cannot return into a half-filled
 /// form.
+///
+/// This is the fallback for back when there is nothing underneath — it is no
+/// longer reachable as a deliberate "skip". free first month: the تخطي button
+/// was removed from every step, since a student who skips the profile form can
+/// never be activated and would simply sit on a gated home screen.
 Future<void> leaveProfileFlow(BuildContext context) async {
   final signedIn = await isUserSignedIn();
   if (!context.mounted) return;
@@ -45,18 +50,14 @@ Future<void> backOutOfProfileFlow(BuildContext context) async {
 class ProfileFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
 
-  /// While a request is in flight both actions are disabled, so a back or skip
-  /// cannot race the submit and navigate away mid-request.
+  /// While a request is in flight back is disabled, so it cannot race the
+  /// submit and navigate away mid-request.
   final bool isBusy;
-
-  /// Steps that can be skipped show "تخطي"; set false to hide it.
-  final bool showSkip;
 
   const ProfileFlowAppBar({
     super.key,
     required this.title,
     this.isBusy = false,
-    this.showSkip = true,
   });
 
   @override
@@ -79,26 +80,6 @@ class ProfileFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
         weight: FontWeight.w600,
       ),
       centerTitle: true,
-      actions: [
-        if (showSkip)
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: TextButton(
-              onPressed: isBusy ? null : () => leaveProfileFlow(context),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.gray600,
-                disabledForegroundColor: AppColors.gray300,
-              ),
-              // Nothing typed so far is sent anywhere: skipping makes no API
-              // call, so the profile simply stays incomplete and home keeps
-              // prompting the student to finish it.
-              child: const Text(
-                'تخطي',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

@@ -1,6 +1,8 @@
 // lib/features/auth/views/register_view_step_2.dart
 //
-// Step 2: phone + password + optional referral/discount code. Calls
+// Step 2: phone + password. free first month: the كود الإحالة and كود الخصم
+// inputs are gone - the backend rules stay for the dashboard/affiliate side,
+// the app simply stops sending them. Calls
 // AuthRepo.register() which sends the OTP, then moves to the OTP screen.
 
 import 'package:flutter/material.dart';
@@ -9,15 +11,15 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/auth/widgets/profile_flow_app_bar.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
-import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_draft.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_3.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/custom_text_field.dart';
 import 'package:rawasi_app_n/shared/main_button.dart';
 
 class RegisterStep2View extends StatefulWidget {
-  final RegistrationData initialData;
-  const RegisterStep2View({super.key, required this.initialData});
+  final RegistrationDraft draft;
+  const RegisterStep2View({super.key, required this.draft});
 
   @override
   State<RegisterStep2View> createState() => _RegisterStep2ViewState();
@@ -27,8 +29,6 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
   late final TextEditingController phoneController;
   late final TextEditingController passwordController;
   late final TextEditingController confirmPasswordController;
-  late final TextEditingController referralCodeController;
-  late final TextEditingController discountCodeController;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final AuthRepo _authRepo = AuthRepo();
@@ -37,21 +37,28 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
   @override
   void initState() {
     super.initState();
-    phoneController = TextEditingController();
-    passwordController = TextEditingController();
-    confirmPasswordController = TextEditingController();
-    referralCodeController = TextEditingController();
-    discountCodeController = TextEditingController();
+    // Seeded from the draft so returning to this step keeps what was typed.
+    final d = widget.draft.data;
+    phoneController = TextEditingController(text: d.phone1);
+    passwordController = TextEditingController(text: d.password);
+    confirmPasswordController = TextEditingController(text: d.confirmPassword);
   }
 
   @override
   void dispose() {
+    _saveToDraft();
     phoneController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
-    referralCodeController.dispose();
-    discountCodeController.dispose();
     super.dispose();
+  }
+
+  void _saveToDraft() {
+    widget.draft.save((current) => current.copyWith(
+          phone1: phoneController.text.trim(),
+          password: passwordController.text.trim(),
+          confirmPassword: confirmPasswordController.text.trim(),
+        ));
   }
 
   String? _validatePhone(String? value) {
@@ -77,36 +84,22 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    _saveToDraft();
     setState(() => _isLoading = true);
     try {
-      final updatedData = widget.initialData.copyWith(
-        phone1: phoneController.text.trim(),
-        password: passwordController.text.trim(),
-        confirmPassword: confirmPasswordController.text.trim(),
-        referralCode: referralCodeController.text.trim().isEmpty
-            ? null
-            : referralCodeController.text.trim(),
-        discountCode: discountCodeController.text.trim().isEmpty
-            ? null
-            : discountCodeController.text.trim(),
-      );
+      final data = widget.draft.data;
 
       await _authRepo.register(
-        academicYear: updatedData.academicYear,
-        planId: updatedData.planId,
-        phone1: updatedData.phone1,
-        password: updatedData.password,
-        confirmPassword: updatedData.confirmPassword,
-        referralCode: updatedData.referralCode,
-        code: updatedData.discountCode,
+        academicYear: data.academicYear,
+        phone1: data.phone1,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
       );
 
       if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => RegisterStep3View(registrationData: updatedData),
-        ),
+        MaterialPageRoute(builder: (_) => RegisterStep3View(draft: widget.draft)),
       );
     } catch (e) {
       final msg = e is ApiError ? e.message : 'حدث خطأ غير متوقع';
@@ -157,7 +150,7 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
                           _field(
                             'رقم الهاتف (أساسي)',
                             CustomTextField(
-                              hint: '01012345678',
+                              hint: '01xxxxxxxxx',
                               isPassword: false,
                               controller: phoneController,
                               validator: _validatePhone,
@@ -179,22 +172,6 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
                               isPassword: true,
                               controller: confirmPasswordController,
                               validator: _validatePasswordMatch,
-                            ),
-                          ),
-                          _field(
-                            'كود الإحالة (اختياري)',
-                            CustomTextField(
-                              hint: 'أدخل كود المسوق إن وُجد',
-                              isPassword: false,
-                              controller: referralCodeController,
-                            ),
-                          ),
-                          _field(
-                            'كود الخصم (اختياري)',
-                            CustomTextField(
-                              hint: 'أدخل كود الخصم إن وُجد',
-                              isPassword: false,
-                              controller: discountCodeController,
                             ),
                           ),
                           SizedBox(

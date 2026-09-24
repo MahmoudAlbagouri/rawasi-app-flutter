@@ -1,17 +1,21 @@
 // lib/features/auth/views/register_view_step_1.dart
 //
-// Step 1: choose academic grade, then a subscription plan for that grade.
-// Registration itself requires both (`academic_year` + `plan_id`).
+// Step 1: choose the academic grade.
+//
+// free first month: the subscription-plan picker is gone. Registration no
+// longer sends plan_id at all - it is nullable server-side, and check-otp puts
+// every new student on the seeded "الشهر المجاني" plan. The plan screens
+// (SubscriptionCard / SubscriptionRepo) are left in the codebase untouched for
+// when paid plans come back.
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
-import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
-import 'package:rawasi_app_n/features/auth/data/subscription_repo.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_draft.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_2.dart';
-import 'package:rawasi_app_n/features/auth/widgets/card_subscription.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/main_button.dart';
 
 class RegisterStep1View extends StatefulWidget {
   const RegisterStep1View({super.key});
@@ -28,33 +32,24 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
   ];
 
   String? _selectedGrade;
-  Future<List<SubscriptionPlan>>? _plansFuture;
 
-  void _selectGrade(String grade) {
-    setState(() {
-      _selectedGrade = grade;
-      _plansFuture = SubscriptionRepo().fetchPlans(grade: grade);
-    });
-  }
+  void _continue() {
+    if (_selectedGrade == null) return;
 
-  void _choosePlan(SubscriptionPlan plan) {
+    // One draft, created here and carried through every later step. This is
+    // what makes going back and forth lossless.
+    final draft = RegistrationDraft(
+      RegistrationData(academicYear: _selectedGrade!),
+    );
+
     Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            RegisterStep2View(
-              initialData: RegistrationData(
-                academicYear: _selectedGrade!,
-                planId: plan.id,
-              ),
-            ),
+            RegisterStep2View(draft: draft),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: Curves.easeOut));
+          final tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+              .chain(CurveTween(curve: Curves.easeOut));
           return SlideTransition(position: animation.drive(tween), child: child);
         },
       ),
@@ -73,7 +68,7 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
           onPressed: () => Navigator.pop(context),
         ),
         scrolledUnderElevation: 0,
-        title: CustomText(
+        title: const CustomText(
           text: 'إنشاء الحساب',
           color: AppColors.brandPrimary,
           size: 18,
@@ -88,14 +83,14 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildProgressIndicator(),
-              Gap(24),
-              CustomText(
+              const Gap(24),
+              const CustomText(
                 text: 'ما هو صفك الدراسي؟',
                 color: AppColors.gray900,
                 size: 18,
                 weight: FontWeight.bold,
               ),
-              Gap(16),
+              const Gap(16),
               Row(
                 children: _grades.map((g) {
                   final selected = _selectedGrade == g['value'];
@@ -103,7 +98,8 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: GestureDetector(
-                        onTap: () => _selectGrade(g['value']!),
+                        onTap: () =>
+                            setState(() => _selectedGrade = g['value']),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
@@ -122,7 +118,8 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
                             g['label']!,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: selected ? Colors.white : AppColors.gray800,
+                              color:
+                                  selected ? Colors.white : AppColors.gray800,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -133,65 +130,51 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
                   );
                 }).toList(),
               ),
-              Gap(24),
-              if (_selectedGrade != null) ...[
-                CustomText(
-                  text: 'اختر باقة الاشتراك',
-                  color: AppColors.gray900,
-                  size: 18,
-                  weight: FontWeight.bold,
+              const Gap(24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary100),
                 ),
-                Gap(16),
-                Expanded(
-                  child: FutureBuilder<List<SubscriptionPlan>>(
-                    future: _plansFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: CustomText(
-                            text: 'فشل تحميل الباقات',
-                            color: AppColors.error600,
-                            size: 15,
-                          ),
-                        );
-                      }
-                      final plans = snapshot.data ?? [];
-                      if (plans.isEmpty) {
-                        return Center(
-                          child: CustomText(
-                            text: 'لا توجد باقات متاحة لهذا الصف',
-                            color: AppColors.gray600,
-                            size: 15,
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        itemCount: plans.length,
-                        separatorBuilder: (context, index) => const Gap(16),
-                        itemBuilder: (context, index) {
-                          final plan = plans[index];
-                          return SubscriptionCard(
-                            plan: plan,
-                            onPressed: () => _choosePlan(plan),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ] else
-                Expanded(
-                  child: Center(
-                    child: CustomText(
-                      text: 'اختر صفك الدراسي لعرض الباقات المتاحة',
-                      color: AppColors.gray600,
-                      size: 15,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.card_giftcard_outlined,
+                      color: AppColors.brandPrimary,
                     ),
-                  ),
+                    const Gap(12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          CustomText(
+                            text: 'الشهر الأول مجانًا',
+                            color: AppColors.brandPrimary,
+                            size: 15,
+                            weight: FontWeight.bold,
+                          ),
+                          Gap(4),
+                          CustomText(
+                            text:
+                                'لا حاجة لاختيار باقة أو دفع أي رسوم للاشتراك الآن.',
+                            color: AppColors.gray700,
+                            size: 13,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const Spacer(),
+              CustomElevatedButton(
+                text: 'المتابعة',
+                icon: const Icon(Icons.arrow_forward_ios),
+                onPressed: _selectedGrade == null ? null : _continue,
+              ),
+              const Gap(12),
             ],
           ),
         ),
@@ -202,16 +185,13 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
   Widget _buildProgressIndicator() {
     return Row(
       children: List.generate(5, (index) {
-        final bool isCompleted = index < 1;
         final bool isCurrent = index == 0;
         return Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 2),
             height: 4,
             decoration: BoxDecoration(
-              color: isCompleted || isCurrent
-                  ? AppColors.brandPrimary
-                  : AppColors.primary100,
+              color: isCurrent ? AppColors.brandPrimary : AppColors.primary100,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

@@ -6,12 +6,12 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
-import 'package:rawasi_app_n/features/auth/views/profile_view.dart';
-import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/library/data/subject_item.dart';
 import 'package:rawasi_app_n/features/library/data/library_repo.dart';
 import 'package:rawasi_app_n/features/library/questions_view.dart';
 import 'package:rawasi_app_n/root.dart';
+import 'package:rawasi_app_n/shared/account_gate.dart';
+import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class SubjectsView extends StatefulWidget {
@@ -153,147 +153,19 @@ class _SubjectsViewState extends State<SubjectsView> {
   }
 
   Widget _buildLoginRequiredScreen() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock, size: 80, color: AppColors.gray500),
-            const SizedBox(height: 24),
-            CustomText(
-              text: 'لابد لك من التسجيل أولًا',
-              color: AppColors.gray900,
-              size: 22,
-              weight: FontWeight.bold,
-            ),
-            const SizedBox(height: 12),
-            CustomText(
-              text: 'قم بإنشاء حسابك الآن للوصول إلى المكتبة.',
-              color: AppColors.gray700,
-              size: 15,
-              align: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: 200,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfileView(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text(
-                  'التسجيل الآن',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    // Both ways in, same shared pair as every other pre-auth surface.
+    return const AccountGate(
+      reason: GateReason.signedOut,
+      action: AuthActions(primary: AuthAction.register),
     );
   }
 
-  // 👇 الدالة المعدّلة لتمييز الحالتين
+  /// free first month: this used to show "أكمل اشتراكك الآن" with a link to the
+  /// receipt upload whenever is_upload_paid_certificate was false - which
+  /// contradicted the courses screen and home for the very same student. There
+  /// is no payment step now, so the one remaining blocker is admin activation.
   Widget _buildPendingReviewScreen(Student? profile) {
-    if (profile != null && !profile.isUploadPaidCertificate) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.payment, size: 80, color: AppColors.brandPrimary),
-              const SizedBox(height: 24),
-              CustomText(
-                text: 'أكمل اشتراكك الآن',
-                color: AppColors.gray900,
-                size: 22,
-                weight: FontWeight.bold,
-              ),
-              const SizedBox(height: 12),
-              CustomText(
-                text:
-                    'لقد سجّلت حسابك بنجاح! يرجى رفع إيصال الدفع لتفعيل اشتراكك والوصول إلى المكتبة.',
-                color: AppColors.gray700,
-                size: 15,
-                align: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: 200,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SubscriptionView(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brandPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text(
-                    'الذهاب إلى الاشتراك',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.hourglass_empty, size: 80, color: AppColors.warning600),
-            const SizedBox(height: 24),
-            CustomText(
-              text: 'حسابك قيد المراجعة',
-              color: AppColors.gray900,
-              size: 22,
-              weight: FontWeight.bold,
-            ),
-            const SizedBox(height: 12),
-            CustomText(
-              text: 'سيتم تفعيل حسابك في أسرع وقت ممكن.',
-              color: AppColors.gray700,
-              size: 15,
-              align: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
+    return AccountGate(reason: gateFor(profile) ?? GateReason.underReview);
   }
 
   Widget _buildSubjectCard(SubjectItem subject) {

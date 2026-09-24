@@ -4,17 +4,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/views/forget_password/forgot_password_phone_view.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
-import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_draft.dart';
 import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/shared/custom-snack.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/custom_text_field.dart';
-import 'package:rawasi_app_n/shared/main_button.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -74,20 +74,19 @@ class _LoginViewState extends State<LoginView> {
       );
       if (!mounted) return;
 
-      Widget destination;
-      if (!user.isProfileCompleted) {
-        destination = RegisterStep4View(
-          registrationData: RegistrationData(
-            academicYear: user.academicYear,
-            planId: user.planId ?? 0,
-            phone1: user.phone1,
-          ),
-        );
-      } else if (!user.isUploadPaidCertificate || !user.isActive) {
-        destination = const SubscriptionView();
-      } else {
-        destination = const HomeView();
-      }
+      // free first month: an account that is complete but not yet activated
+      // goes to home, which shows the shared "حسابك قيد المراجعة" gate. There
+      // is no receipt to upload, so isUploadPaidCertificate is not consulted.
+      final Widget destination = user.isProfileCompleted
+          ? const HomeView()
+          : RegisterStep4View(
+              draft: RegistrationDraft(
+                RegistrationData(
+                  academicYear: user.academicYear,
+                  phone1: user.phone1,
+                ),
+              ),
+            );
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -218,23 +217,13 @@ class _LoginViewState extends State<LoginView> {
                         ),
                         Gap(24),
 
-                        // زر تسجيل الدخول
-                        SizedBox(
-                          width: double.infinity,
-                          child: isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : CustomElevatedButton(
-                                  text: 'تسجيل الدخول',
-                                  onPressed: login,
-                                  backgroundColor: AppColors.brandPrimary,
-                                  textColor: Colors.white,
-                                  textStyle: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  horizontalPadding: 24,
-                                  verticalPadding: 14,
-                                ),
+                        // Login submits the form; "إنشاء حساب جديد" is always
+                        // offered beside it, on every pre-auth screen.
+                        AuthActions(
+                          primary: AuthAction.login,
+                          onPrimary: login,
+                          isBusy: isLoading,
+                          replaceOnNavigate: true,
                         ),
                       ],
                     ),

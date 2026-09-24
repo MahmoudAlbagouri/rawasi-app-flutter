@@ -52,32 +52,27 @@ class AuthRepo {
   }
 
   // ---------------------------------------------------------------------------
-  // Register (step 1 — minimal): academic year, chosen plan, phone, password.
+  // Register (step 1 — minimal): academic year, phone, password.
   // Sends an OTP; the account itself is created on check-otp.
+  //
+  // free first month: no plan_id, no referral_code and no code. plan_id is
+  // nullable server-side and check-otp assigns the free-month plan; the
+  // referral/discount rules are still there for the dashboard, the app just
+  // stopped sending them.
   // ---------------------------------------------------------------------------
   Future<bool> register({
     required String academicYear,
-    required int planId,
     required String phone1,
     required String password,
     required String confirmPassword,
-    String? referralCode,
-    String? code,
   }) async {
     try {
       final Map<String, dynamic> body = {
         'academic_year': academicYear,
-        'plan_id': planId.toString(),
         'phone1': phone1,
         'password': password,
         'password_confirmation': confirmPassword,
       };
-      if (referralCode != null && referralCode.isNotEmpty) {
-        body['referral_code'] = referralCode;
-      }
-      if (code != null && code.isNotEmpty) {
-        body['code'] = code;
-      }
 
       final response = await apiServices.post('/register', body);
 
@@ -116,28 +111,22 @@ class AuthRepo {
   // ---------------------------------------------------------------------------
   // Complete profile (step 2 — authenticated): everything registration skips.
   // ---------------------------------------------------------------------------
+  /// free first month: the payload shrank to what the form still collects.
+  /// school_branch became required; is_final_secondary, term_level, email,
+  /// quran_level and every supervisor field were dropped and are no longer
+  /// accepted by CompleteProfileRequest.
   Future<Student> completeProfile({
     required String firstName,
     required String lastName,
     required String gender,
     required String birthDate,
     required String madhab,
+    required String? schoolBranch,
     required String instituteName,
     required String governorate,
     required String city,
-    required String supervisor1Name,
-    required String supervisor1Relation,
-    required String supervisor1Phone,
-    bool? isFinalSecondary,
-    String? schoolBranch,
-    String? termLevel,
-    String? email,
     String? phone2,
     bool? isWhatsapp,
-    int? quranLevel,
-    String? supervisor2Name,
-    String? supervisor2Relation,
-    String? supervisor2Phone,
   }) async {
     try {
       final Map<String, dynamic> body = {
@@ -149,28 +138,12 @@ class AuthRepo {
         'institute_name': instituteName,
         'governorate': governorate,
         'city': city,
-        'supervisor1_name': supervisor1Name,
-        'supervisor1_relation': supervisor1Relation,
-        'supervisor1_phone': supervisor1Phone,
       };
-      if (isFinalSecondary != null) {
-        body['is_final_secondary'] = isFinalSecondary ? 1 : 0;
-      }
       if (schoolBranch != null && schoolBranch.isNotEmpty) {
         body['school_branch'] = schoolBranch;
       }
-      if (termLevel != null && termLevel.isNotEmpty) {
-        body['term_level'] = termLevel;
-      }
-      if (email != null && email.isNotEmpty) body['email'] = email;
       if (phone2 != null && phone2.isNotEmpty) body['phone2'] = phone2;
       if (isWhatsapp != null) body['is_whatsapp'] = isWhatsapp ? 1 : 0;
-      if (quranLevel != null) body['quran_level'] = quranLevel.toString();
-      if (supervisor2Name != null && supervisor2Name.isNotEmpty) {
-        body['supervisor2_name'] = supervisor2Name;
-        body['supervisor2_relation'] = supervisor2Relation;
-        body['supervisor2_phone'] = supervisor2Phone;
-      }
 
       final response = await apiServices.post('/complete-profile', body);
 

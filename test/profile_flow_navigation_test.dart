@@ -100,11 +100,6 @@ void main() {
         ),
       );
       expect(backButton.onPressed, isNull, reason: 'back disabled while busy');
-
-      final skip = tester.widget<TextButton>(
-        find.ancestor(of: find.text('تخطي'), matching: find.byType(TextButton)),
-      );
-      expect(skip.onPressed, isNull, reason: 'skip disabled while busy');
     });
 
     testWidgets('system back is intercepted when there is nothing to pop',
@@ -120,24 +115,25 @@ void main() {
   });
 
   group('skip', () {
-    testWidgets('appears on the actions side of every step', (tester) async {
+    // free first month: تخطي was removed from every step. Skipping left the
+    // student with an incomplete profile that can never be activated, so the
+    // only way out of the flow now is back (which is guarded above) or
+    // finishing it.
+    testWidgets('is gone from the profile flow chrome', (tester) async {
       await tester.pumpWidget(_app(const _Step()));
 
-      expect(find.text('تخطي'), findsOneWidget);
+      expect(find.text('تخطي'), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
 
-      // Same AppBar carries both, with skip in actions (opposite the arrow).
       final appBar = tester.widget<AppBar>(find.byType(AppBar));
-      expect(appBar.actions, isNotNull);
-      expect(find.descendant(of: find.byType(AppBar), matching: find.text('تخطي')),
-          findsOneWidget);
+      expect(appBar.actions == null || appBar.actions!.isEmpty, isTrue,
+          reason: 'no trailing action should remain on the step app bar');
     });
 
-    testWidgets('can be hidden where skipping makes no sense', (tester) async {
-      await tester.pumpWidget(_app(
-        const Scaffold(appBar: ProfileFlowAppBar(title: 't', showSkip: false)),
-      ));
+    testWidgets('back is still the one way out', (tester) async {
+      await tester.pumpWidget(_app(const _Step()));
 
-      expect(find.text('تخطي'), findsNothing);
+      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
     });
   });
 }

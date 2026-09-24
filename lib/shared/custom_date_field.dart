@@ -9,12 +9,23 @@ class CustomDateField extends StatefulWidget {
   final ValueChanged<DateTime?>? onChanged;
   final bool required;
 
+  /// Latest selectable date. Callers that have a rule stricter than "not in
+  /// the future" pass it here so the picker cannot offer an invalid date at
+  /// all - a birth date, for instance, must be strictly before today.
+  final DateTime? lastDate;
+
+  /// Error shown under the field straight away, rather than waiting for a
+  /// form-level validate() on some later screen.
+  final String? errorText;
+
   const CustomDateField({
     super.key,
     this.hint,
     this.selectedDate,
     this.onChanged,
     this.required = false,
+    this.lastDate,
+    this.errorText,
   });
 
   @override
@@ -39,11 +50,16 @@ class _CustomDateFieldState extends State<CustomDateField> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final last = widget.lastDate ?? DateTime.now();
+    // showDatePicker asserts initialDate <= lastDate, so clamp it: with a
+    // lastDate of yesterday, defaulting to "now" would throw.
+    final initial = _selectedDate ?? (last.isBefore(DateTime.now()) ? last : DateTime.now());
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: initial,
       firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
+      lastDate: last,
       locale: const Locale('ar'),
       builder: (context, child) {
         return Theme(
@@ -93,6 +109,9 @@ class _CustomDateFieldState extends State<CustomDateField> {
         return null;
       },
       onTap: () => _selectDate(context),
+      // Re-validate as soon as a date is chosen, so the message appears on
+      // this field rather than after the final submit two screens later.
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       controller: TextEditingController(
         text: _selectedDate != null ? _formatDate(_selectedDate!) : '',
       ),
@@ -129,6 +148,7 @@ class _CustomDateFieldState extends State<CustomDateField> {
           borderSide: BorderSide(color: errorColor, width: 2.0),
         ),
 
+        errorText: widget.errorText,
         suffixIcon: Icon(Icons.calendar_today, color: AppColors.gray600),
         contentPadding: const EdgeInsets.symmetric(
           vertical: 16.0,

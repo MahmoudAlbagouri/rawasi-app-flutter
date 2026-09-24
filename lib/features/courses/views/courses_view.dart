@@ -9,12 +9,12 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
-import 'package:rawasi_app_n/features/auth/views/login_view.dart';
-import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/views/course_lessons_view.dart';
 import 'package:rawasi_app_n/root.dart';
+import 'package:rawasi_app_n/shared/account_gate.dart';
+import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
@@ -81,34 +81,12 @@ class _CoursesViewState extends State<CoursesView> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final profile = snapshot.data;
-                  if (profile == null || !profile.isProfileCompleted) {
-                    return _buildMessage(
-                      icon: Icons.person_outline,
-                      title: 'استكمل بياناتك',
-                      message: 'يرجى استكمال بيانات ملفك الشخصي أولاً.',
-                    );
-                  }
-                  if (!profile.isUploadPaidCertificate) {
-                    return _buildMessage(
-                      icon: Icons.payment,
-                      title: 'أكمل اشتراكك',
-                      message: 'يرجى رفع إيصال الدفع لتفعيل اشتراكك.',
-                      actionLabel: 'الذهاب إلى الاشتراك',
-                      onAction: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SubscriptionView()),
-                      ),
-                    );
-                  }
-                  if (!profile.isActive) {
-                    return _buildMessage(
-                      icon: Icons.hourglass_empty,
-                      title: 'حسابك قيد المراجعة',
-                      message: 'سيتم تفعيل حسابك في أسرع وقت ممكن.',
-                    );
-                  }
-                    return _buildCoursesList();
+                  // One shared gate: three hand-written branches here used to
+                  // contradict the library and home.
+                  final reason = gateFor(snapshot.data);
+                  if (reason != null) return AccountGate(reason: reason);
+
+                  return _buildCoursesList();
                   },
                 );
               },
@@ -269,69 +247,10 @@ class _CoursesViewState extends State<CoursesView> {
       v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
   Widget _buildLoginRequired() {
-    return _buildMessage(
-      icon: Icons.lock,
-      title: 'لابد لك من تسجيل الدخول أولًا',
-      message: 'قم بتسجيل الدخول للوصول إلى المواد الدراسية.',
-      actionLabel: 'تسجيل الدخول',
-      onAction: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginView()),
-      ),
-    );
-  }
-
-  Widget _buildMessage({
-    required IconData icon,
-    required String title,
-    required String message,
-    String? actionLabel,
-    VoidCallback? onAction,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 72, color: AppColors.gray500),
-            const Gap(20),
-            CustomText(
-              text: title,
-              color: AppColors.gray900,
-              size: 20,
-              weight: FontWeight.bold,
-            ),
-            const Gap(10),
-            CustomText(
-              text: message,
-              color: AppColors.gray700,
-              size: 14,
-              align: TextAlign.center,
-            ),
-            if (actionLabel != null) ...[
-              const Gap(24),
-              SizedBox(
-                width: 220,
-                child: ElevatedButton(
-                  onPressed: onAction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brandPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text(
-                    actionLabel,
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+    // Both ways in, same hierarchy as every other pre-auth surface.
+    return const AccountGate(
+      reason: GateReason.signedOut,
+      action: AuthActions(),
     );
   }
 }

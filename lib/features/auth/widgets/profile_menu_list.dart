@@ -7,6 +7,7 @@ import 'package:rawasi_app_n/features/auth/views/student_details_view.dart';
 import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/auth/widgets/profile_menu_item.dart';
 import 'package:rawasi_app_n/features/contact/views/contact_view.dart';
+import 'package:rawasi_app_n/features/contact/views/intro_video_view.dart';
 import 'package:rawasi_app_n/features/contact/views/faq_view.dart';
 
 class ProfileMenuList extends StatelessWidget {
@@ -148,6 +149,17 @@ class ProfileMenuList extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => SubscriptionView()),
+            );
+          },
+        ),
+        ProfileMenuItem(
+          title1: "كيف يعمل التطبيق؟",
+          icon: Icons.ondemand_video_outlined,
+          iconColor: AppColors.brandSecondary,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const IntroVideoView()),
             );
           },
         ),

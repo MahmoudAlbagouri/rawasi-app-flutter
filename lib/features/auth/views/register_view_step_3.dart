@@ -11,15 +11,14 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/auth/widgets/profile_flow_app_bar.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
-import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
+import 'package:rawasi_app_n/features/auth/data/registration_draft.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
-import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/main_button.dart';
 
 class RegisterStep3View extends StatefulWidget {
-  final RegistrationData registrationData;
+  final RegistrationDraft draft;
 
-  const RegisterStep3View({super.key, required this.registrationData});
+  const RegisterStep3View({super.key, required this.draft});
 
   @override
   State<RegisterStep3View> createState() => _RegisterStep3ViewState();
@@ -79,15 +78,12 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
     if (_isCounting) return;
     setState(() => _isLoading = true);
     try {
-      final data = widget.registrationData;
+      final data = widget.draft.data;
       await _authRepo.register(
         academicYear: data.academicYear,
-        planId: data.planId,
         phone1: data.phone1,
         password: data.password,
         confirmPassword: data.confirmPassword,
-        referralCode: data.referralCode,
-        code: data.discountCode,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,13 +117,13 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
 
     setState(() => _isLoading = true);
     try {
-      await _authRepo.checkOtp(widget.registrationData.phone1, otp);
+      await _authRepo.checkOtp(widget.draft.data.phone1, otp);
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) =>
-              RegisterStep4View(registrationData: widget.registrationData),
+              RegisterStep4View(draft: widget.draft),
         ),
       );
     } catch (e) {
@@ -183,7 +179,7 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
                     children: [
                       const TextSpan(text: 'تم إرسال رمز التحقق إلى '),
                       TextSpan(
-                        text: widget.registrationData.phone1,
+                        text: widget.draft.data.phone1,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.brandPrimary,
