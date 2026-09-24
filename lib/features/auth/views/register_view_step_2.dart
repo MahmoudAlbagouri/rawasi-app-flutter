@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/features/auth/widgets/profile_flow_app_bar.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
@@ -121,109 +122,100 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.gray50,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-            onPressed: () => Navigator.pop(context),
+    return ProfileFlowPopScope(
+      isBusy: _isLoading,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: AppColors.gray50,
+          appBar: ProfileFlowAppBar(
+            title: 'إنشاء الحساب',
+            isBusy: _isLoading,
           ),
-          scrolledUnderElevation: 0,
-          title: CustomText(
-            text: 'إنشاء الحساب',
-            color: AppColors.brandPrimary,
-            size: 18,
-            weight: FontWeight.w600,
-          ),
-          centerTitle: true,
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildProgressIndicator(),
-                  Gap(32),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        CustomText(
-                          text: 'بيانات الدخول',
-                          color: AppColors.gray600,
-                          size: 18,
-                          weight: FontWeight.w600,
-                        ),
-                        Gap(24),
-                        _field(
-                          'رقم الهاتف (أساسي)',
-                          CustomTextField(
-                            hint: '01012345678',
-                            isPassword: false,
-                            controller: phoneController,
-                            validator: _validatePhone,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    _buildProgressIndicator(),
+                    Gap(32),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          CustomText(
+                            text: 'بيانات الدخول',
+                            color: AppColors.gray600,
+                            size: 18,
+                            weight: FontWeight.w600,
                           ),
-                        ),
-                        _field(
-                          'كلمة المرور',
-                          CustomTextField(
-                            hint: 'أدخل كلمة المرور',
-                            isPassword: true,
-                            controller: passwordController,
-                            validator: _validatePassword,
+                          Gap(24),
+                          _field(
+                            'رقم الهاتف (أساسي)',
+                            CustomTextField(
+                              hint: '01012345678',
+                              isPassword: false,
+                              controller: phoneController,
+                              validator: _validatePhone,
+                            ),
                           ),
-                        ),
-                        _field(
-                          'تأكيد كلمة المرور',
-                          CustomTextField(
-                            hint: 'أعد إدخال كلمة المرور',
-                            isPassword: true,
-                            controller: confirmPasswordController,
-                            validator: _validatePasswordMatch,
+                          _field(
+                            'كلمة المرور',
+                            CustomTextField(
+                              hint: 'أدخل كلمة المرور',
+                              isPassword: true,
+                              controller: passwordController,
+                              validator: _validatePassword,
+                            ),
                           ),
-                        ),
-                        _field(
-                          'كود الإحالة (اختياري)',
-                          CustomTextField(
-                            hint: 'أدخل كود المسوق إن وُجد',
-                            isPassword: false,
-                            controller: referralCodeController,
+                          _field(
+                            'تأكيد كلمة المرور',
+                            CustomTextField(
+                              hint: 'أعد إدخال كلمة المرور',
+                              isPassword: true,
+                              controller: confirmPasswordController,
+                              validator: _validatePasswordMatch,
+                            ),
                           ),
-                        ),
-                        _field(
-                          'كود الخصم (اختياري)',
-                          CustomTextField(
-                            hint: 'أدخل كود الخصم إن وُجد',
-                            isPassword: false,
-                            controller: discountCodeController,
+                          _field(
+                            'كود الإحالة (اختياري)',
+                            CustomTextField(
+                              hint: 'أدخل كود المسوق إن وُجد',
+                              isPassword: false,
+                              controller: referralCodeController,
+                            ),
                           ),
-                        ),
-                        SizedBox(
-                          width: double.infinity,
-                          child: CustomElevatedButton(
-                            text: _isLoading ? 'جارٍ التسجيل...' : 'المتابعة',
-                            onPressed: _isLoading ? null : _submit,
-                            backgroundColor: _isLoading
-                                ? AppColors.gray300
-                                : AppColors.brandPrimary,
-                            textColor: Colors.white,
-                            textStyle: const TextStyle(fontSize: 16),
-                            horizontalPadding: 24,
-                            verticalPadding: 14,
+                          _field(
+                            'كود الخصم (اختياري)',
+                            CustomTextField(
+                              hint: 'أدخل كود الخصم إن وُجد',
+                              isPassword: false,
+                              controller: discountCodeController,
+                            ),
                           ),
-                        ),
-                      ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: CustomElevatedButton(
+                              text: _isLoading ? 'جارٍ التسجيل...' : 'المتابعة',
+                              onPressed: _isLoading ? null : _submit,
+                              backgroundColor: _isLoading
+                                  ? AppColors.gray300
+                                  : AppColors.brandPrimary,
+                              textColor: Colors.white,
+                              textStyle: const TextStyle(fontSize: 16),
+                              horizontalPadding: 24,
+                              verticalPadding: 14,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

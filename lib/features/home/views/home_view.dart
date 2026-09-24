@@ -14,6 +14,7 @@ import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/lesson/views/lesson_video_view.dart';
 import 'package:rawasi_app_n/features/home/widgets/daily_progress_card.dart';
 import 'package:rawasi_app_n/root.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/day_card.dart';
 
@@ -105,10 +106,11 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.gray50,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+      backgroundColor: AppColors.white,
+      body: BrandBackdrop(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
           child: FutureBuilder<_HomeData>(
             future: _dataFuture,
             builder: (context, snapshot) {
@@ -251,6 +253,7 @@ class _HomeViewState extends State<HomeView> {
                 ],
               );
             },
+            ),
           ),
         ),
       ),

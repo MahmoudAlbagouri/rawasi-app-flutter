@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/features/auth/widgets/profile_flow_app_bar.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
@@ -171,6 +172,7 @@ class _RegisterStep5ViewState extends State<RegisterStep5View> {
       );
     } catch (e) {
       final msg = e is ApiError ? e.message : 'حدث خطأ غير متوقع';
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(msg)));
@@ -194,238 +196,229 @@ class _RegisterStep5ViewState extends State<RegisterStep5View> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.gray50,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-            onPressed: () => Navigator.pop(context),
+    return ProfileFlowPopScope(
+      isBusy: isLoading,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: AppColors.gray50,
+          appBar: ProfileFlowAppBar(
+            title: 'استكمال البيانات',
+            isBusy: isLoading,
           ),
-          scrolledUnderElevation: 0,
-          title: CustomText(
-            text: 'استكمال البيانات',
-            color: AppColors.brandPrimary,
-            size: 18,
-            weight: FontWeight.w600,
-          ),
-          centerTitle: true,
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Row(
-                    children: List.generate(5, (index) {
-                      final bool isCompleted = index < 5;
-                      final bool isCurrent = index == 4;
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isCurrent || isCompleted
-                                ? AppColors.brandPrimary
-                                : AppColors.primary100,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  Gap(24),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        Text(
-                          'أدخل بيانات معهدك والمشرف عليك',
-                          style: TextStyle(
-                            color: AppColors.gray600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Gap(24),
-                        _buildField(
-                          title: 'اسم المعهد',
-                          child: CustomTextField(
-                            hint: 'اسم المعهد',
-                            isPassword: false,
-                            controller: _instituteController,
-                            validator: _validateRequiredText,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'المحافظة',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر المحافظة',
-                            items: _governoratesAndCities.keys.toList(),
-                            itemAsString: (item) => item,
-                            value: _selectedGovernorate,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedGovernorate = value;
-                                _selectedCity = null;
-                              });
-                            },
-                            required: true,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'المدينة',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر المدينة',
-                            items: _selectedGovernorate != null
-                                ? _governoratesAndCities[_selectedGovernorate]!
-                                : [],
-                            itemAsString: (item) => item,
-                            value: _selectedCity,
-                            onChanged: (value) =>
-                                setState(() => _selectedCity = value),
-                            required: true,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'البريد الإلكتروني (اختياري)',
-                          child: CustomTextField(
-                            hint: 'example@example.com',
-                            isPassword: false,
-                            controller: _emailController,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'رقم هاتف إضافي (اختياري)',
-                          child: CustomTextField(
-                            hint: '01012345678',
-                            isPassword: false,
-                            controller: _phone2Controller,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'عدد الأجزاء المحفوظة (اختياري)',
-                          child: CustomTextField(
-                            hint: 'من 0 إلى 30',
-                            isPassword: false,
-                            controller: _quranLevelController,
-                          ),
-                        ),
-                        Gap(4),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          activeColor: AppColors.brandPrimary,
-                          title: CustomText(
-                            text: 'رقم الهاتف الأساسي على واتساب',
-                            color: AppColors.gray900,
-                            size: 14,
-                            weight: FontWeight.w600,
-                          ),
-                          value: _isWhatsapp,
-                          onChanged: (value) =>
-                              setState(() => _isWhatsapp = value),
-                        ),
-                        Gap(16),
-                        _buildField(
-                          title: 'اسم المشرف',
-                          child: CustomTextField(
-                            hint: 'اسم المشرف',
-                            isPassword: false,
-                            controller: _supervisorNameController,
-                            validator: _validateRequiredText,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'صلة الإشراف',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر صلة الإشراف',
-                            items: _relations,
-                            itemAsString: (item) => item,
-                            value: _selectedRelation,
-                            onChanged: (value) =>
-                                setState(() => _selectedRelation = value),
-                            required: true,
-                          ),
-                        ),
-                        _buildField(
-                          title: 'رقم هاتف المشرف',
-                          child: CustomTextField(
-                            hint: '01110022133',
-                            isPassword: false,
-                            controller: _supervisorPhoneController,
-                            validator: _validatePhone,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 32.0),
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _showSecondSupervisor = !_showSecondSupervisor;
-                                if (!_showSecondSupervisor) {
-                                  _supervisor2NameController.clear();
-                                  _supervisor2PhoneController.clear();
-                                  _selectedRelation2 = null;
-                                }
-                              });
-                            },
-                            icon: Icon(
-                              _showSecondSupervisor ? Icons.remove : Icons.add,
-                              color: AppColors.brandPrimary,
-                            ),
-                            label: Text(
-                              _showSecondSupervisor
-                                  ? 'إخفاء المشرف الثاني'
-                                  : 'أضف مُشرفًا آخر (اختياري)',
-                              style: TextStyle(color: AppColors.brandPrimary),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    Row(
+                      children: List.generate(5, (index) {
+                        final bool isCompleted = index < 5;
+                        final bool isCurrent = index == 4;
+                        return Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isCurrent || isCompleted
+                                  ? AppColors.brandPrimary
+                                  : AppColors.primary100,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                        ),
-                        if (_showSecondSupervisor) ...[
-                          const Divider(color: AppColors.gray200, height: 24),
+                        );
+                      }),
+                    ),
+                    Gap(24),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          Text(
+                            'أدخل بيانات معهدك والمشرف عليك',
+                            style: TextStyle(
+                              color: AppColors.gray600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Gap(24),
                           _buildField(
-                            title: 'اسم المشرف الثاني (اختياري)',
+                            title: 'اسم المعهد',
+                            child: CustomTextField(
+                              hint: 'اسم المعهد',
+                              isPassword: false,
+                              controller: _instituteController,
+                              validator: _validateRequiredText,
+                            ),
+                          ),
+                          _buildField(
+                            title: 'المحافظة',
+                            child: CustomDropdown<String>(
+                              hint: 'اختر المحافظة',
+                              items: _governoratesAndCities.keys.toList(),
+                              itemAsString: (item) => item,
+                              value: _selectedGovernorate,
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedGovernorate = value;
+                                  _selectedCity = null;
+                                });
+                              },
+                              required: true,
+                            ),
+                          ),
+                          _buildField(
+                            title: 'المدينة',
+                            child: CustomDropdown<String>(
+                              hint: 'اختر المدينة',
+                              items: _selectedGovernorate != null
+                                  ? _governoratesAndCities[_selectedGovernorate]!
+                                  : [],
+                              itemAsString: (item) => item,
+                              value: _selectedCity,
+                              onChanged: (value) =>
+                                  setState(() => _selectedCity = value),
+                              required: true,
+                            ),
+                          ),
+                          _buildField(
+                            title: 'البريد الإلكتروني (اختياري)',
+                            child: CustomTextField(
+                              hint: 'example@example.com',
+                              isPassword: false,
+                              controller: _emailController,
+                            ),
+                          ),
+                          _buildField(
+                            title: 'رقم هاتف إضافي (اختياري)',
+                            child: CustomTextField(
+                              hint: '01012345678',
+                              isPassword: false,
+                              controller: _phone2Controller,
+                            ),
+                          ),
+                          _buildField(
+                            title: 'عدد الأجزاء المحفوظة (اختياري)',
+                            child: CustomTextField(
+                              hint: 'من 0 إلى 30',
+                              isPassword: false,
+                              controller: _quranLevelController,
+                            ),
+                          ),
+                          Gap(4),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: AppColors.brandPrimary,
+                            title: CustomText(
+                              text: 'رقم الهاتف الأساسي على واتساب',
+                              color: AppColors.gray900,
+                              size: 14,
+                              weight: FontWeight.w600,
+                            ),
+                            value: _isWhatsapp,
+                            onChanged: (value) =>
+                                setState(() => _isWhatsapp = value),
+                          ),
+                          Gap(16),
+                          _buildField(
+                            title: 'اسم المشرف',
                             child: CustomTextField(
                               hint: 'اسم المشرف',
                               isPassword: false,
-                              controller: _supervisor2NameController,
+                              controller: _supervisorNameController,
+                              validator: _validateRequiredText,
                             ),
                           ),
                           _buildField(
-                            title: 'صلة الإشراف (اختياري)',
+                            title: 'صلة الإشراف',
                             child: CustomDropdown<String>(
                               hint: 'اختر صلة الإشراف',
                               items: _relations,
                               itemAsString: (item) => item,
-                              value: _selectedRelation2,
+                              value: _selectedRelation,
                               onChanged: (value) =>
-                                  setState(() => _selectedRelation2 = value),
+                                  setState(() => _selectedRelation = value),
+                              required: true,
                             ),
                           ),
                           _buildField(
-                            title: 'رقم هاتف المشرف الثاني (اختياري)',
+                            title: 'رقم هاتف المشرف',
                             child: CustomTextField(
                               hint: '01110022133',
                               isPassword: false,
-                              controller: _supervisor2PhoneController,
+                              controller: _supervisorPhoneController,
+                              validator: _validatePhone,
                             ),
                           ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 32.0),
+                            child: TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _showSecondSupervisor = !_showSecondSupervisor;
+                                  if (!_showSecondSupervisor) {
+                                    _supervisor2NameController.clear();
+                                    _supervisor2PhoneController.clear();
+                                    _selectedRelation2 = null;
+                                  }
+                                });
+                              },
+                              icon: Icon(
+                                _showSecondSupervisor ? Icons.remove : Icons.add,
+                                color: AppColors.brandPrimary,
+                              ),
+                              label: Text(
+                                _showSecondSupervisor
+                                    ? 'إخفاء المشرف الثاني'
+                                    : 'أضف مُشرفًا آخر (اختياري)',
+                                style: TextStyle(color: AppColors.brandPrimary),
+                              ),
+                            ),
+                          ),
+                          if (_showSecondSupervisor) ...[
+                            const Divider(color: AppColors.gray200, height: 24),
+                            _buildField(
+                              title: 'اسم المشرف الثاني (اختياري)',
+                              child: CustomTextField(
+                                hint: 'اسم المشرف',
+                                isPassword: false,
+                                controller: _supervisor2NameController,
+                              ),
+                            ),
+                            _buildField(
+                              title: 'صلة الإشراف (اختياري)',
+                              child: CustomDropdown<String>(
+                                hint: 'اختر صلة الإشراف',
+                                items: _relations,
+                                itemAsString: (item) => item,
+                                value: _selectedRelation2,
+                                onChanged: (value) =>
+                                    setState(() => _selectedRelation2 = value),
+                              ),
+                            ),
+                            _buildField(
+                              title: 'رقم هاتف المشرف الثاني (اختياري)',
+                              child: CustomTextField(
+                                hint: '01110022133',
+                                isPassword: false,
+                                controller: _supervisor2PhoneController,
+                              ),
+                            ),
+                          ],
+                          CustomElevatedButton(
+                            text: isLoading ? 'جاري الإرسال...' : 'إنشاء',
+                            icon: const Icon(Icons.check),
+                            onPressed: isLoading ? null : _submit,
+                          ),
                         ],
-                        CustomElevatedButton(
-                          text: isLoading ? 'جاري الإرسال...' : 'إنشاء',
-                          icon: const Icon(Icons.check),
-                          onPressed: isLoading ? null : _submit,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

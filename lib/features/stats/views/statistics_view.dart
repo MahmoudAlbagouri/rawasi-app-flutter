@@ -13,6 +13,7 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/stats/data/stats_repo.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
+import 'package:rawasi_app_n/root.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class StatisticsView extends StatefulWidget {
@@ -43,10 +44,15 @@ class _StatisticsViewState extends State<StatisticsView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // Reachable both as a bottom-nav tab and pushed from the profile menu:
+        // only offer back when there is something to go back to.
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+        automaticallyImplyLeading: false,
         title: const Text(
           'إحصائياتي',
           style: TextStyle(
@@ -103,6 +109,7 @@ class _StatisticsViewState extends State<StatisticsView> {
           },
         ),
       ),
+      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 4),
     );
   }
 

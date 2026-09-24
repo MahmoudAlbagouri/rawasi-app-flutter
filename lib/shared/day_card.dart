@@ -41,10 +41,11 @@ class DayCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: isCompleted
-                  ? AppColors.success100
-                  : AppColors.brandPrimary.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: isCompleted ? AppColors.success100 : AppColors.primary50,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: isCompleted ? AppColors.success500 : AppColors.primary100,
+              ),
             ),
             child: Icon(
               isCompleted ? Icons.check : Icons.play_arrow,

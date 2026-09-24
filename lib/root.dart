@@ -4,6 +4,7 @@ import 'package:rawasi_app_n/features/auth/views/profile_view.dart';
 import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/features/library/subjects_view.dart';
+import 'package:rawasi_app_n/features/stats/views/statistics_view.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -30,6 +31,8 @@ class CustomBottomNavBar extends StatelessWidget {
         selectedItemColor: AppColors.brandPrimary,
         unselectedItemColor: AppColors.gray600,
         type: BottomNavigationBarType.fixed,
+        selectedFontSize: 10,
+        unselectedFontSize: 10,
         onTap: (index) {
           if (index == selectedIndex) return;
           switch (index) {
@@ -57,6 +60,12 @@ class CustomBottomNavBar extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => ProfileView()),
               );
               break;
+            case 4:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const StatisticsView()),
+              );
+              break;
           }
         },
         items: const [
@@ -66,7 +75,7 @@ class CustomBottomNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.menu_book_outlined),
-            label: 'المواد الدراسية',
+            label: 'المواد',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.library_books_outlined),
@@ -75,6 +84,10 @@ class CustomBottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             label: 'حسابي',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.insights_outlined),
+            label: 'إحصائياتي',
           ),
         ],
       ),

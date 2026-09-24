@@ -41,7 +41,8 @@ class LessonFlowView extends StatefulWidget {
   State<LessonFlowView> createState() => _LessonFlowViewState();
 }
 
-class _LessonFlowViewState extends State<LessonFlowView> {
+class _LessonFlowViewState extends State<LessonFlowView>
+    with WidgetsBindingObserver {
   final CoursesRepo _repo = CoursesRepo();
 
   _Phase _phase = _Phase.loading;
@@ -57,6 +58,24 @@ class _LessonFlowViewState extends State<LessonFlowView> {
   final List<Question> _reviewQueue = [];
   int _easyCount = 0;
 
+  /// Time actually spent on screen, per question.
+  ///
+  /// A monotonic Stopwatch, not wall-clock arithmetic: the device clock can
+  /// jump (NTP, timezone, the student changing it) and would poison the total.
+  /// It only runs while a question is on screen AND the app is in the
+  /// foreground, so a lesson left open in the background adds nothing.
+  ///
+  /// Milliseconds are banked per question id rather than seconds because a
+  /// question can be measured across two passes - seen once, marked "جيد",
+  /// then seen again in the review pass - and rounding each leg separately
+  /// would quietly shave a second off every pause.
+  final Stopwatch _watch = Stopwatch();
+  final Map<int, int> _bankedMs = {};
+
+  /// The backend caps a single question at 2 hours (StudentProgressController);
+  /// clamp here too so an absurd value never leaves the device.
+  static const int _maxQuestionSeconds = 7200;
+
   /// Course figures for the completion screen.
   List<Lesson> _courseLessons = [];
   Lesson? _nextLesson;
@@ -67,8 +86,56 @@ class _LessonFlowViewState extends State<LessonFlowView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _watch.stop();
+    super.dispose();
+  }
+
+  /// Stop counting the moment the app leaves the foreground, and pick up again
+  /// on return. Stopwatch.stop() keeps what it has, so start() resumes rather
+  /// than restarts.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_isTimedPhase) _watch.start();
+    } else {
+      _watch.stop();
+    }
+  }
+
+  bool get _isTimedPhase =>
+      _phase == _Phase.question || _phase == _Phase.review;
+
+  // ---------------------------------------------------------------------------
+  // Time on question
+  // ---------------------------------------------------------------------------
+
+  /// Begins measuring the question that is now on screen.
+  void _startTimingQuestion() {
+    _watch
+      ..reset()
+      ..start();
+  }
+
+  /// Folds whatever the stopwatch holds into [questionId]'s running total and
+  /// stops it. Safe to call twice - the second call banks zero.
+  void _bankTime(int questionId) {
+    _bankedMs[questionId] =
+        (_bankedMs[questionId] ?? 0) + _watch.elapsedMilliseconds;
+    _watch
+      ..stop()
+      ..reset();
+  }
+
+  /// Seconds to report for [questionId], clamped to what the API accepts.
+  int _durationFor(int questionId) =>
+      ((_bankedMs[questionId] ?? 0) / 1000).round().clamp(0, _maxQuestionSeconds);
 
   Future<void> _load() async {
     setState(() {
@@ -96,6 +163,7 @@ class _LessonFlowViewState extends State<LessonFlowView> {
         _answerShown = false;
         _phase = _Phase.question;
       });
+      _startTimingQuestion();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -111,15 +179,30 @@ class _LessonFlowViewState extends State<LessonFlowView> {
 
   Future<void> _markEasy() async {
     if (_busy) return;
+    final question = _current;
+    // Stop the clock before the request: network time is not study time.
+    _bankTime(question.questionId);
+
     setState(() => _busy = true);
     try {
-      await _repo.completeQuestion(_current.questionId);
+      await _repo.completeQuestion(
+        question.questionId,
+        // A question already completed before this run is a replay, and the
+        // backend records replays as no-ops by design - so there is nothing
+        // for a duration to attach to. Omitting it keeps the request honest
+        // instead of sending time that will be silently dropped.
+        durationSeconds:
+            question.isCompleted ? null : _durationFor(question.questionId),
+      );
       if (!mounted) return;
       setState(() => _easyCount++);
       await _advance();
     } catch (e) {
       if (!mounted) return;
       _snack(e is ApiError ? e.message : 'تعذّر حفظ إجابتك، حاول مرة أخرى');
+      // The student stays on this question to retry; its banked time is kept
+      // and the clock resumes, so a failed attempt costs them nothing.
+      _watch.start();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -127,6 +210,9 @@ class _LessonFlowViewState extends State<LessonFlowView> {
 
   Future<void> _markGood() async {
     if (_busy) return;
+    // Not sent yet - "جيد" never reaches the API. The time is banked so that
+    // when the review pass turns this question into "سهل" both sittings count.
+    _bankTime(_current.questionId);
     _reviewQueue.add(_current);
     await _advance();
   }
@@ -139,6 +225,7 @@ class _LessonFlowViewState extends State<LessonFlowView> {
         // hides it again for the next question.
         _answerShown = _isReviewPass;
       });
+      _startTimingQuestion();
       return;
     }
 
@@ -158,9 +245,11 @@ class _LessonFlowViewState extends State<LessonFlowView> {
       _answerShown = true;
       _phase = _Phase.review;
     });
+    _startTimingQuestion();
   }
 
   Future<void> _finish() async {
+    _watch.stop();
     setState(() => _phase = _Phase.finishing);
     try {
       final lessons = await _repo.fetchLessons(widget.courseId);

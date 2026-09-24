@@ -15,6 +15,7 @@ import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/views/course_lessons_view.dart';
 import 'package:rawasi_app_n/root.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class CoursesView extends StatefulWidget {
@@ -48,7 +49,7 @@ class _CoursesViewState extends State<CoursesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.gray50,
+      backgroundColor: AppColors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -61,10 +62,11 @@ class _CoursesViewState extends State<CoursesView> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: FutureBuilder<bool>(
+      body: BrandBackdrop(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: FutureBuilder<bool>(
             future: _isSignedInFuture,
             builder: (context, authSnapshot) {
               if (authSnapshot.connectionState == ConnectionState.waiting) {
@@ -106,10 +108,11 @@ class _CoursesViewState extends State<CoursesView> {
                       message: 'سيتم تفعيل حسابك في أسرع وقت ممكن.',
                     );
                   }
-                  return _buildCoursesList();
-                },
-              );
-            },
+                    return _buildCoursesList();
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -183,15 +186,7 @@ class _CoursesViewState extends State<CoursesView> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(course.icon, color: AppColors.brandPrimary),
-                ),
+                BrandIconBadge(icon: course.icon),
                 const Gap(16),
                 Expanded(
                   child: Column(

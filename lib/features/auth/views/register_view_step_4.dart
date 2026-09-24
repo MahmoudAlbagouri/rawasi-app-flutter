@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/features/auth/widgets/profile_flow_app_bar.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_5.dart';
 import 'package:rawasi_app_n/features/auth/widgets/build_field.dart';
@@ -123,172 +124,163 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.gray50,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-            onPressed: () => Navigator.pop(context),
+    return ProfileFlowPopScope(
+      isBusy: false,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: AppColors.gray50,
+          appBar: ProfileFlowAppBar(
+            title: 'استكمال البيانات',
+            isBusy: false,
           ),
-          scrolledUnderElevation: 0,
-          title: CustomText(
-            text: 'استكمال البيانات',
-            color: AppColors.brandPrimary,
-            size: 18,
-            weight: FontWeight.w600,
-          ),
-          centerTitle: true,
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Row(
-                    children: List.generate(5, (index) {
-                      final bool isCompleted = index < 4;
-                      final bool isCurrent = index == 3;
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isCompleted
-                                ? AppColors.brandPrimary
-                                : isCurrent
-                                ? AppColors.primary300
-                                : AppColors.primary100,
-                            borderRadius: BorderRadius.circular(2),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    Row(
+                      children: List.generate(5, (index) {
+                        final bool isCompleted = index < 4;
+                        final bool isCurrent = index == 3;
+                        return Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isCompleted
+                                  ? AppColors.brandPrimary
+                                  : isCurrent
+                                  ? AppColors.primary300
+                                  : AppColors.primary100,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
-                        ),
-                      );
-                    }),
-                  ),
-                  Gap(24),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        Text(
-                          'أخبرنا المزيد عن نفسك',
-                          style: TextStyle(
-                            color: AppColors.gray600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Gap(24),
-                        BuildField(
-                          title: 'الاسم الأول',
-                          child: CustomTextField(
-                            hint: 'ادخل اسمك الأول',
-                            isPassword: false,
-                            controller: firstNameController,
-                            validator: _validateRequired,
-                          ),
-                        ),
-                        Gap(16),
-                        BuildField(
-                          title: 'الاسم الأخير',
-                          child: CustomTextField(
-                            hint: 'ادخل اسمك الأخير',
-                            isPassword: false,
-                            controller: lastNameController,
-                            validator: _validateRequired,
-                          ),
-                        ),
-                        Gap(16),
-                        BuildField(
-                          title: 'الجنس',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر الجنس',
-                            items: genders.map((g) => g['label']!).toList(),
-                            itemAsString: (item) => item,
-                            value: selectedGenderLabel,
-                            onChanged: (value) =>
-                                setState(() => selectedGenderLabel = value),
-                            required: true,
-                          ),
-                        ),
-                        Gap(16),
-                        BuildField(
-                          title: 'تاريخ الميلاد',
-                          child: CustomDateField(
-                            hint: 'تاريخ الميلاد',
-                            selectedDate: selectedBirthDate,
-                            onChanged: (date) =>
-                                setState(() => selectedBirthDate = date),
-                            required: true,
-                          ),
-                        ),
-                        Gap(16),
-                        BuildField(
-                          title: 'المذهب',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر المذهب',
-                            items: madhabs.map((m) => m['label']!).toList(),
-                            itemAsString: (item) => item,
-                            value: selectedMadhabLabel,
-                            onChanged: (value) =>
-                                setState(() => selectedMadhabLabel = value),
-                            required: true,
-                          ),
-                        ),
-                        Gap(16),
-                        BuildField(
-                          title: 'الشعبة (اختياري)',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر الشعبة',
-                            items: branches.map((b) => b['label']!).toList(),
-                            itemAsString: (item) => item,
-                            value: selectedBranchLabel,
-                            onChanged: (value) =>
-                                setState(() => selectedBranchLabel = value),
-                          ),
-                        ),
-                        Gap(16),
-                        BuildField(
-                          title: 'الفصل الدراسي (اختياري)',
-                          child: CustomDropdown<String>(
-                            hint: 'اختر الفصل الدراسي',
-                            items: termLevels.map((t) => t['label']!).toList(),
-                            itemAsString: (item) => item,
-                            value: selectedTermLabel,
-                            onChanged: (value) =>
-                                setState(() => selectedTermLabel = value),
-                          ),
-                        ),
-                        Gap(8),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          activeColor: AppColors.brandPrimary,
-                          title: CustomText(
-                            text: 'أنا في السنة الأخيرة من الثانوية',
-                            color: AppColors.gray900,
-                            size: 14,
-                            weight: FontWeight.w600,
-                          ),
-                          value: _isFinalSecondary,
-                          onChanged: (value) =>
-                              setState(() => _isFinalSecondary = value),
-                        ),
-                        Gap(24),
-                        CustomElevatedButton(
-                          text: 'المتابعة',
-                          icon: const Icon(Icons.arrow_forward_ios),
-                          onPressed: _next,
-                        ),
-                      ],
+                        );
+                      }),
                     ),
-                  ),
-                ],
+                    Gap(24),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          Text(
+                            'أخبرنا المزيد عن نفسك',
+                            style: TextStyle(
+                              color: AppColors.gray600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Gap(24),
+                          BuildField(
+                            title: 'الاسم الأول',
+                            child: CustomTextField(
+                              hint: 'ادخل اسمك الأول',
+                              isPassword: false,
+                              controller: firstNameController,
+                              validator: _validateRequired,
+                            ),
+                          ),
+                          Gap(16),
+                          BuildField(
+                            title: 'الاسم الأخير',
+                            child: CustomTextField(
+                              hint: 'ادخل اسمك الأخير',
+                              isPassword: false,
+                              controller: lastNameController,
+                              validator: _validateRequired,
+                            ),
+                          ),
+                          Gap(16),
+                          BuildField(
+                            title: 'الجنس',
+                            child: CustomDropdown<String>(
+                              hint: 'اختر الجنس',
+                              items: genders.map((g) => g['label']!).toList(),
+                              itemAsString: (item) => item,
+                              value: selectedGenderLabel,
+                              onChanged: (value) =>
+                                  setState(() => selectedGenderLabel = value),
+                              required: true,
+                            ),
+                          ),
+                          Gap(16),
+                          BuildField(
+                            title: 'تاريخ الميلاد',
+                            child: CustomDateField(
+                              hint: 'تاريخ الميلاد',
+                              selectedDate: selectedBirthDate,
+                              onChanged: (date) =>
+                                  setState(() => selectedBirthDate = date),
+                              required: true,
+                            ),
+                          ),
+                          Gap(16),
+                          BuildField(
+                            title: 'المذهب',
+                            child: CustomDropdown<String>(
+                              hint: 'اختر المذهب',
+                              items: madhabs.map((m) => m['label']!).toList(),
+                              itemAsString: (item) => item,
+                              value: selectedMadhabLabel,
+                              onChanged: (value) =>
+                                  setState(() => selectedMadhabLabel = value),
+                              required: true,
+                            ),
+                          ),
+                          Gap(16),
+                          BuildField(
+                            title: 'الشعبة (اختياري)',
+                            child: CustomDropdown<String>(
+                              hint: 'اختر الشعبة',
+                              items: branches.map((b) => b['label']!).toList(),
+                              itemAsString: (item) => item,
+                              value: selectedBranchLabel,
+                              onChanged: (value) =>
+                                  setState(() => selectedBranchLabel = value),
+                            ),
+                          ),
+                          Gap(16),
+                          BuildField(
+                            title: 'الفصل الدراسي (اختياري)',
+                            child: CustomDropdown<String>(
+                              hint: 'اختر الفصل الدراسي',
+                              items: termLevels.map((t) => t['label']!).toList(),
+                              itemAsString: (item) => item,
+                              value: selectedTermLabel,
+                              onChanged: (value) =>
+                                  setState(() => selectedTermLabel = value),
+                            ),
+                          ),
+                          Gap(8),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: AppColors.brandPrimary,
+                            title: CustomText(
+                              text: 'أنا في السنة الأخيرة من الثانوية',
+                              color: AppColors.gray900,
+                              size: 14,
+                              weight: FontWeight.w600,
+                            ),
+                            value: _isFinalSecondary,
+                            onChanged: (value) =>
+                                setState(() => _isFinalSecondary = value),
+                          ),
+                          Gap(24),
+                          CustomElevatedButton(
+                            text: 'المتابعة',
+                            icon: const Icon(Icons.arrow_forward_ios),
+                            onPressed: _next,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

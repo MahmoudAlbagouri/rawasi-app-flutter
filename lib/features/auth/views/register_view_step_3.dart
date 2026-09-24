@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/features/auth/widgets/profile_flow_app_bar.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/auth/data/auth_repo.dart';
 import 'package:rawasi_app_n/features/auth/data/registration_data.dart';
@@ -131,6 +132,7 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
       );
     } catch (e) {
       final msg = e is ApiError ? e.message : 'رمز التحقق غير صحيح';
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: AppColors.error600),
       );
@@ -141,114 +143,104 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.gray50,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-          onPressed: () => Navigator.pop(context),
-        ),
-        foregroundColor: AppColors.brandPrimary,
-        scrolledUnderElevation: 0,
-        title: CustomText(
-          text: 'تأكيد الحساب',
-          color: AppColors.brandPrimary,
-          size: 18,
-          weight: FontWeight.w600,
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: List.generate(5, (index) {
-                  final bool isCompleted = index < 3;
-                  final bool isCurrent = index == 2;
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isCompleted
-                            ? AppColors.brandPrimary
-                            : isCurrent
-                            ? AppColors.primary300
-                            : AppColors.primary100,
-                        borderRadius: BorderRadius.circular(2),
+    return ProfileFlowPopScope(
+      isBusy: _isLoading,
+      child: Scaffold(
+        backgroundColor: AppColors.gray50,
+        appBar: ProfileFlowAppBar(
+            title: 'تأكيد الحساب',
+            isBusy: _isLoading,
+          ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: List.generate(5, (index) {
+                    final bool isCompleted = index < 3;
+                    final bool isCurrent = index == 2;
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isCompleted
+                              ? AppColors.brandPrimary
+                              : isCurrent
+                              ? AppColors.primary300
+                              : AppColors.primary100,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-              Gap(24),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    const TextSpan(text: 'تم إرسال رمز التحقق إلى '),
-                    TextSpan(
-                      text: widget.registrationData.phone1,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.brandPrimary,
-                      ),
-                    ),
-                  ],
+                    );
+                  }),
                 ),
-                style: TextStyle(color: AppColors.gray700, fontSize: 17),
-                textDirection: TextDirection.rtl,
-              ),
-              Gap(8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (_isLoading)
-                    const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.brandPrimary,
+                Gap(24),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'تم إرسال رمز التحقق إلى '),
+                      TextSpan(
+                        text: widget.registrationData.phone1,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.brandPrimary,
+                        ),
                       ),
-                      strokeWidth: 2,
-                    )
-                  else
-                    TextButton(
-                      onPressed: _isCounting ? null : _handleResend,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        foregroundColor: _isCounting
-                            ? AppColors.gray400
-                            : AppColors.brandPrimary,
-                      ),
-                      child: Text(
-                        _isCounting
-                            ? 'إعادة الإرسال (${_remainingSeconds}s)'
-                            : 'إعادة الإرسال',
-                        style: TextStyle(
-                          color: _isCounting
+                    ],
+                  ),
+                  style: TextStyle(color: AppColors.gray700, fontSize: 17),
+                  textDirection: TextDirection.rtl,
+                ),
+                Gap(8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (_isLoading)
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.brandPrimary,
+                        ),
+                        strokeWidth: 2,
+                      )
+                    else
+                      TextButton(
+                        onPressed: _isCounting ? null : _handleResend,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          foregroundColor: _isCounting
                               ? AppColors.gray400
                               : AppColors.brandPrimary,
                         ),
+                        child: Text(
+                          _isCounting
+                              ? 'إعادة الإرسال (${_remainingSeconds}s)'
+                              : 'إعادة الإرسال',
+                          style: TextStyle(
+                            color: _isCounting
+                                ? AppColors.gray400
+                                : AppColors.brandPrimary,
+                          ),
+                        ),
                       ),
-                    ),
-                ],
-              ),
-              Gap(48),
-              _buildOTPFields(),
-              Gap(40),
-              CustomElevatedButton(
-                text: _isLoading ? 'جاري التحقق...' : 'تأكيد',
-                onPressed: _isLoading ? null : _verifyOtp,
-                backgroundColor: AppColors.brandPrimary,
-                textColor: Colors.white,
-                textStyle: const TextStyle(fontSize: 16),
-                horizontalPadding: 24,
-                verticalPadding: 14,
-              ),
-            ],
+                  ],
+                ),
+                Gap(48),
+                _buildOTPFields(),
+                Gap(40),
+                CustomElevatedButton(
+                  text: _isLoading ? 'جاري التحقق...' : 'تأكيد',
+                  onPressed: _isLoading ? null : _verifyOtp,
+                  backgroundColor: AppColors.brandPrimary,
+                  textColor: Colors.white,
+                  textStyle: const TextStyle(fontSize: 16),
+                  horizontalPadding: 24,
+                  verticalPadding: 14,
+                ),
+              ],
+            ),
           ),
         ),
       ),
