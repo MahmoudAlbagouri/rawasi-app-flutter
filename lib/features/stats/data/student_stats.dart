@@ -4,6 +4,8 @@
 // Totals come from the backend's curriculum config, not from uploaded rows, so
 // percentages stay stable as more lessons are published.
 
+import 'package:rawasi_app_n/shared/arabic_plural.dart';
+
 double _num(dynamic v) {
   if (v is num) return v.toDouble();
   return double.tryParse('$v') ?? 0;
@@ -18,6 +20,7 @@ class StudentStats {
   final TimeSpent timeSpent;
   final Pacing pacing;
   final Leaderboard leaderboard;
+  final Inactivity inactivity;
 
   StudentStats({
     required this.completion,
@@ -26,6 +29,7 @@ class StudentStats {
     required this.timeSpent,
     required this.pacing,
     required this.leaderboard,
+    required this.inactivity,
   });
 
   factory StudentStats.fromJson(Map<String, dynamic> json) {
@@ -38,7 +42,53 @@ class StudentStats {
       timeSpent: TimeSpent.fromJson(json['time_spent'] ?? const {}),
       pacing: Pacing.fromJson(json['pacing'] ?? const {}),
       leaderboard: Leaderboard.fromJson(json['leaderboard'] ?? const {}),
+      // Added after the other keys, so an older payload without it still
+      // parses - the card then renders its "never started" state.
+      inactivity: Inactivity.fromJson(json['inactivity'] ?? const {}),
     );
+  }
+}
+
+/// Days since the student last studied a new lesson.
+///
+/// Comes from the same activity() the dashboard student table reads, so the
+/// figure a student sees and the one an admin sees cannot drift apart.
+///
+/// [delayDays] is null when there is nothing to measure from at all: no
+/// completed question and no activation date.
+class Inactivity {
+  final String? lastStudyDate;
+  final int? delayDays;
+
+  Inactivity({this.lastStudyDate, this.delayDays});
+
+  factory Inactivity.fromJson(Map<String, dynamic> json) => Inactivity(
+        lastStudyDate: json['last_study_date']?.toString(),
+        delayDays: json['delay_days'] == null ? null : _int(json['delay_days']),
+      );
+
+  bool get hasStarted => delayDays != null;
+
+  /// The headline. Deliberately a nudge, not a scolding.
+  String get label {
+    final days = delayDays;
+    if (days == null) return 'لم تبدأ بعد';
+    if (days == 0) return 'درست اليوم';
+    return 'مر ${arabicDays(days)} منذ آخر درس';
+  }
+
+  /// The supporting line under [label].
+  ///
+  /// At three days the next lesson unlocks by itself (the 3-day auto-unlock
+  /// rule), so past that point the honest message is "it is already open",
+  /// not "you are behind". The rule itself is untouched — this only describes
+  /// it.
+  String get hint {
+    final days = delayDays;
+    if (days == null) return 'ابدأ أول درس لتبدأ المتابعة';
+    if (days == 0) return 'واصل التقدم';
+    if (days < 3) return 'عُد لإكمال ما بدأته';
+    return 'الدرس التالي مفتوح لك الآن';
   }
 }
 
@@ -46,6 +96,9 @@ class Completion {
   final int completedLessons;
   final int totalLessons;
   final int remainingLessons;
+
+  /// Completed lessons against the grade's FULL curriculum total
+  /// (config/curriculum.php), not against however many lessons are uploaded.
   final double percentage;
 
   Completion({
@@ -54,6 +107,21 @@ class Completion {
     required this.remainingLessons,
     required this.percentage,
   });
+
+  /// "40" / "2.9" — the single formatter for this figure.
+  ///
+  /// Home and إحصائياتي both render this, so the two screens cannot print the
+  /// same number to different precision. (Home used to show
+  /// `Student.progress` instead, which is a different statistic entirely:
+  /// completed QUESTIONS over every question in the database, unscoped by
+  /// grade or madhab. See the note in home_view.dart.)
+  String get percentLabel =>
+      percentage == percentage.roundToDouble()
+          ? percentage.toInt().toString()
+          : percentage.toString();
+
+  /// 0.0–1.0, for progress indicators.
+  double get fraction => (percentage / 100).clamp(0.0, 1.0);
 
   factory Completion.fromJson(Map<String, dynamic> json) => Completion(
         completedLessons: _int(json['completed_lessons']),
@@ -142,17 +210,24 @@ class TimeSpent {
 class Pacing {
   final double lessonsPerWeek;
   final int remainingLessons;
+
+  /// Already in the payload; needed to tell a real weekly average from a
+  /// first-day burst, where the rate outruns the work actually done.
+  final int completedLessons;
+
   final String? estimatedCompletionDate;
 
   Pacing({
     required this.lessonsPerWeek,
     required this.remainingLessons,
+    this.completedLessons = 0,
     this.estimatedCompletionDate,
   });
 
   factory Pacing.fromJson(Map<String, dynamic> json) => Pacing(
         lessonsPerWeek: _num(json['lessons_per_week']),
         remainingLessons: _int(json['remaining_lessons']),
+        completedLessons: _int(json['completed_lessons']),
         estimatedCompletionDate: json['estimated_completion_date']?.toString(),
       );
 }

@@ -18,6 +18,13 @@ const Map<String, String> _questionTypeLabels = {
   'memorization': 'استظهار',
 };
 
+/// Arabic label for a backend question type.
+///
+/// Public so the library flow can label a saved question without keeping a
+/// second copy of the map - the two must not drift.
+String questionTypeLabel(String? type) =>
+    _questionTypeLabels[type] ?? 'سؤال';
+
 class Question {
   final int questionId;
   final int lessonId;
@@ -46,5 +53,5 @@ class Question {
     );
   }
 
-  String get typeLabel => _questionTypeLabels[type] ?? 'سؤال';
+  String get typeLabel => questionTypeLabel(type);
 }

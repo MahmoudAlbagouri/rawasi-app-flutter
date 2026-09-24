@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/stats/data/stats_repo.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
@@ -85,6 +86,8 @@ class _StatisticsViewState extends State<StatisticsView> {
                   _row(stats),
                   const Gap(16),
                   _pacingCard(stats.pacing),
+                  const Gap(16),
+                  _inactivityCard(stats.inactivity),
                   const Gap(20),
                   _sectionTitle('تقدم المواد'),
                   const Gap(12),
@@ -162,7 +165,7 @@ class _StatisticsViewState extends State<StatisticsView> {
   // ---------------------------------------------------------------------------
 
   Widget _overallCard(Completion c) {
-    final fraction = (c.percentage / 100).clamp(0.0, 1.0);
+    final fraction = c.fraction;
 
     return _card(
       child: Column(
@@ -194,7 +197,8 @@ class _StatisticsViewState extends State<StatisticsView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CustomText(
-                      text: '${_trim(c.percentage)}%',
+                      // Shared formatter — home prints the identical string.
+                      text: '${c.percentLabel}%',
                       color: AppColors.brandPrimary,
                       size: 28,
                       weight: FontWeight.bold,
@@ -313,8 +317,57 @@ class _StatisticsViewState extends State<StatisticsView> {
   // ---------------------------------------------------------------------------
 
   Widget _pacingCard(Pacing p) {
+    // A student who has completed nothing has no pace to report. Printing
+    // "بمعدل 0 درس في الأسبوع" next to a blank projection reads like a broken
+    // card rather than an empty one.
+    if (p.lessonsPerWeek <= 0) {
+      return _card(
+        child: Row(
+          children: [
+            Icon(Icons.speed, color: AppColors.gray400, size: 30),
+            const Gap(14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomText(
+                    text: 'الدروس المكتملة أسبوعياً',
+                    color: AppColors.gray900,
+                    size: 15,
+                    weight: FontWeight.bold,
+                  ),
+                  const Gap(6),
+                  CustomText(
+                    text: 'لم تبدأ بعد',
+                    color: AppColors.gray700,
+                    size: 13,
+                  ),
+                  const Gap(2),
+                  CustomText(
+                    text: 'أكمل أول درس ليظهر معدلك الأسبوعي',
+                    color: AppColors.gray600,
+                    size: 12,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final projected = arabicDate(p.estimatedCompletionDate);
+
+    // Everything finished in the first day or two makes the weekly rate
+    // mathematically true but useless — one day is a seventh of a week, so a
+    // single lesson reads as "7 دروس في الأسبوع". The backend keeps the raw
+    // figure on purpose; the honest thing here is to caption it rather than
+    // quietly rewrite the number or project a finish date off it.
+    final isEarly = p.lessonsPerWeek > p.completedLessons && p.completedLessons > 0;
+
     return _card(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.speed, color: AppColors.brandPrimary, size: 30),
           const Gap(14),
@@ -330,15 +383,88 @@ class _StatisticsViewState extends State<StatisticsView> {
                 ),
                 const Gap(6),
                 CustomText(
-                  text: 'بمعدل ${_trim(p.lessonsPerWeek)} درس في الأسبوع',
+                  text: 'بمعدل ${_trim(p.lessonsPerWeek)} ${arabicLessonWord(p.lessonsPerWeek)} في الأسبوع',
                   color: AppColors.gray700,
                   size: 13,
                 ),
                 const Gap(2),
                 CustomText(
-                  text: 'المتبقي: ${p.remainingLessons} درسًا',
+                  text: 'المتبقي: ${arabicLessons(p.remainingLessons)}',
                   color: AppColors.gray600,
                   size: 13,
+                ),
+                if (isEarly) ...[
+                  const Gap(6),
+                  CustomText(
+                    text: 'معدل مبدئي — سيستقر بعد أسبوع من المذاكرة',
+                    color: AppColors.warning700,
+                    size: 12,
+                  ),
+                ] else if (projected != null) ...[
+                  const Gap(6),
+                  CustomText(
+                    text: 'بهذا المعدل تنتهي في $projected',
+                    color: AppColors.success700,
+                    size: 12,
+                    weight: FontWeight.w600,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The counted noun for a fractional rate: 0.5 درس, 2 درسان, 7 دروس.
+  String arabicLessonWord(double rate) {
+    if (rate <= 1) return 'درس';
+    if (rate < 3) return 'درس';
+    return 'دروس';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Days since the last new lesson
+  // ---------------------------------------------------------------------------
+
+  Widget _inactivityCard(Inactivity a) {
+    final days = a.delayDays;
+
+    final (Color accent, IconData icon) = switch (days) {
+      null => (AppColors.gray500, Icons.hourglass_empty),
+      0 => (AppColors.success600, Icons.check_circle_outline),
+      _ when days < 3 => (AppColors.brandPrimary, Icons.schedule),
+      _ => (AppColors.warning700, Icons.lock_open_outlined),
+    };
+
+    return _card(
+      child: Row(
+        children: [
+          Icon(icon, color: accent, size: 30),
+          const Gap(14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomText(
+                  text: 'أيام الانقطاع عن الدروس الجديدة',
+                  color: AppColors.gray900,
+                  size: 15,
+                  weight: FontWeight.bold,
+                ),
+                const Gap(6),
+                CustomText(
+                  text: a.label,
+                  color: accent,
+                  size: 14,
+                  weight: FontWeight.w600,
+                ),
+                const Gap(2),
+                CustomText(
+                  text: a.hint,
+                  color: AppColors.gray600,
+                  size: 12,
                 ),
               ],
             ),
@@ -615,7 +741,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                   weight: e.isCurrentStudent ? FontWeight.bold : FontWeight.w500,
                 ),
                 CustomText(
-                  text: '${e.completedLessons} درس مكتمل',
+                  text: '${arabicLessons(e.completedLessons)} مكتمل',
                   color: AppColors.gray500,
                   size: 11,
                 ),
@@ -623,7 +749,10 @@ class _StatisticsViewState extends State<StatisticsView> {
             ),
           ),
           CustomText(
-            text: '${e.points} نقطة',
+            // Arabic counted noun: نقطة / نقطتان / نقاط, not نقطة for every
+            // number. `completed_lessons` above is a caption - points are the
+            // ranking key.
+            text: arabicPoints(e.points),
             color: AppColors.brandPrimary,
             size: 13,
             weight: FontWeight.w600,
