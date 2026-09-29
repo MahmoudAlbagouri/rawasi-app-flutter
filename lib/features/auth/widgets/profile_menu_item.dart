@@ -33,6 +33,10 @@ class ProfileMenuItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
+          // The screen sits on a white base now, so a shadow alone no longer
+          // separates the row from the background. Same hairline the cards on
+          // home / courses / إحصائياتي use.
+          border: Border.all(color: AppColors.gray200),
           boxShadow: [
             BoxShadow(
               color: AppColors.gray200.withOpacity(0.3),
