@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
+import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
 import 'package:rawasi_app_n/features/courses/views/lesson_flow_view.dart';
@@ -13,10 +14,16 @@ class CourseLessonsView extends StatefulWidget {
   final int courseId;
   final String courseName;
 
+  /// Curriculum figures for this subject, forwarded to the lesson flow so its
+  /// completion summary measures against the full subject rather than the
+  /// lessons uploaded so far.
+  final CourseProgress? progress;
+
   const CourseLessonsView({
     super.key,
     required this.courseId,
     required this.courseName,
+    this.progress,
   });
 
   @override
@@ -118,6 +125,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                     lessonId: lesson.id,
                     courseId: widget.courseId,
                     lessonTitle: lesson.title,
+                    courseProgress: widget.progress,
                   ),
                 ),
               );

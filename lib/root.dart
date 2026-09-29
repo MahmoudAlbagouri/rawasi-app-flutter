@@ -6,10 +6,41 @@ import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/features/library/subjects_view.dart';
 import 'package:rawasi_app_n/features/stats/views/statistics_view.dart';
 
-class CustomBottomNavBar extends StatelessWidget {
-  final int selectedIndex;
+/// The bottom navigation tabs, in display order.
+///
+/// Declaration order IS the tab order — in RTL the first entry sits rightmost.
+/// Every screen names its tab (`NavTab.stats`) instead of hardcoding a
+/// position, so reordering is one edit here rather than five files that have
+/// to be kept in sync. Getting that wrong used to mean a tab highlighted one
+/// screen while opening another, because the `items` list and the `onTap`
+/// switch were maintained separately.
+enum NavTab {
+  home(icon: Icons.home_outlined, label: 'الرئيسية'),
+  courses(icon: Icons.menu_book_outlined, label: 'المواد'),
+  library(icon: Icons.library_books_outlined, label: 'المكتبة'),
+  stats(icon: Icons.insights_outlined, label: 'إحصائياتي'),
+  account(icon: Icons.person_outline, label: 'حسابي');
 
-  const CustomBottomNavBar({super.key, this.selectedIndex = 0});
+  const NavTab({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  /// The screen this tab opens. Kept beside the label so a tab can never be
+  /// labelled one thing and route somewhere else.
+  Widget get screen => switch (this) {
+        NavTab.home => const HomeView(),
+        NavTab.courses => const CoursesView(),
+        NavTab.library => const SubjectsView(),
+        NavTab.stats => const StatisticsView(),
+        NavTab.account => ProfileView(),
+      };
+}
+
+class CustomBottomNavBar extends StatelessWidget {
+  final NavTab current;
+
+  const CustomBottomNavBar({super.key, this.current = NavTab.home});
 
   @override
   Widget build(BuildContext context) {
@@ -27,68 +58,25 @@ class CustomBottomNavBar extends StatelessWidget {
       ),
       child: BottomNavigationBar(
         backgroundColor: Colors.white,
-        currentIndex: selectedIndex,
+        currentIndex: current.index,
         selectedItemColor: AppColors.brandPrimary,
         unselectedItemColor: AppColors.gray600,
         type: BottomNavigationBarType.fixed,
+        // Five Arabic labels have to fit on a narrow phone without wrapping.
         selectedFontSize: 10,
         unselectedFontSize: 10,
         onTap: (index) {
-          if (index == selectedIndex) return;
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomeView()),
-              );
-              break;
-            case 1:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const CoursesView()),
-              );
-              break;
-            case 2:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const SubjectsView()),
-              );
-              break;
-            case 3:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => ProfileView()),
-              );
-              break;
-            case 4:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const StatisticsView()),
-              );
-              break;
-          }
+          final tab = NavTab.values[index];
+          if (tab == current) return;
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => tab.screen),
+          );
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'الرئيسية',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_outlined),
-            label: 'المواد',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_books_outlined),
-            label: 'المكتبة',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'حسابي',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.insights_outlined),
-            label: 'إحصائياتي',
-          ),
+        items: [
+          for (final tab in NavTab.values)
+            BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
         ],
       ),
     );

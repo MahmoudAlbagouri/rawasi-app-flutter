@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
@@ -62,8 +63,10 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.gray50,
-      body: FutureBuilder<bool>(
+      // Matches home / courses / library / إحصائياتي.
+      backgroundColor: AppColors.white,
+      body: BrandBackdrop(
+        child: FutureBuilder<bool>(
         future: isUserSignedIn(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -226,8 +229,9 @@ class _ProfileViewState extends State<ProfileView> {
             );
           }
         },
+        ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 3),
+      bottomNavigationBar: const CustomBottomNavBar(current: NavTab.account),
     );
   }
 }

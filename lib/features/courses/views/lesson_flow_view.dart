@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
+import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
 import 'package:rawasi_app_n/features/courses/data/question.dart';
@@ -30,11 +31,25 @@ class LessonFlowView extends StatefulWidget {
   final int courseId;
   final String lessonTitle;
 
+  /// The subject's curriculum figures, passed down from the courses list.
+  ///
+  /// The completion summary needs `totalLessons` — the FIXED curriculum total
+  /// from config/curriculum.php — as its denominator. Counting the lessons
+  /// currently uploaded instead told a student who finished the 3 available
+  /// lessons of a 39-lesson subject that they were "100% complete", and their
+  /// percentage would then FALL as more content landed. Passed in rather than
+  /// refetched, since every caller already holds the Course.
+  ///
+  /// Null only for a course no configured subject claims, which is handled
+  /// without ever claiming completion.
+  final CourseProgress? courseProgress;
+
   const LessonFlowView({
     super.key,
     required this.lessonId,
     required this.courseId,
     required this.lessonTitle,
+    this.courseProgress,
   });
 
   @override
@@ -788,10 +803,23 @@ class _LessonFlowViewState extends State<LessonFlowView>
   /// Final screen: lesson done, next lesson unlocked, and where the student now
   /// stands in this course.
   Widget _completionPage() {
-    final total = _courseLessons.length;
+    // How many lessons of this subject exist so far. NOT the denominator.
+    final available = _courseLessons.length;
     final completed = _courseLessons.where((l) => l.isCompleted).length;
-    final remaining = total - completed;
+
+    // The curriculum figure is the denominator, so the percentage means
+    // "of the subject" and stays put as more lessons are uploaded.
+    final curriculumTotal = widget.courseProgress?.totalLessons;
+    final total = curriculumTotal ?? available;
+
+    final remaining = (total - completed).clamp(0, total);
     final percent = total == 0 ? 0 : ((completed / total) * 100).round();
+
+    // The celebration fires ONLY against the real curriculum total. Exhausting
+    // what happens to be uploaded is a different — and right now very common —
+    // state, and saying "you finished the subject" there would be false.
+    final finishedSubject = curriculumTotal != null && completed >= curriculumTotal;
+    final finishedAvailable = !finishedSubject && available > 0 && completed >= available;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -849,12 +877,19 @@ class _LessonFlowViewState extends State<LessonFlowView>
                   ),
                   const Gap(6),
                   CustomText(
-                    text: remaining > 0
-                        ? 'المتبقي: $remaining درسًا'
-                        : 'أكملت جميع دروس هذه المادة 🎉',
-                    color: remaining > 0 ? AppColors.gray600 : AppColors.success700,
+                    text: finishedSubject
+                        ? 'أكملت جميع دروس هذه المادة 🎉'
+                        : finishedAvailable
+                            ? 'أنهيت كل الدروس المتاحة حاليًا — والمزيد في الطريق'
+                            : 'المتبقي: $remaining درسًا',
+                    color: finishedSubject
+                        ? AppColors.success700
+                        : finishedAvailable
+                            ? AppColors.brandPrimary
+                            : AppColors.gray600,
                     size: 14,
                     weight: FontWeight.w600,
+                    align: TextAlign.center,
                   ),
                 ],
               ),
@@ -909,6 +944,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
                         lessonId: next.id,
                         courseId: widget.courseId,
                         lessonTitle: next.title,
+                        courseProgress: widget.courseProgress,
                       ),
                     ),
                   );

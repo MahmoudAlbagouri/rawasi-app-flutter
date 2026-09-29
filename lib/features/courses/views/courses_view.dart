@@ -94,7 +94,7 @@ class _CoursesViewState extends State<CoursesView> {
           ),
         ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 1),
+      bottomNavigationBar: const CustomBottomNavBar(current: NavTab.courses),
     );
   }
 
@@ -142,7 +142,11 @@ class _CoursesViewState extends State<CoursesView> {
           context,
           MaterialPageRoute(
             builder: (_) =>
-                CourseLessonsView(courseId: course.id, courseName: course.name),
+                CourseLessonsView(
+                  courseId: course.id,
+                  courseName: course.name,
+                  progress: course.progress,
+                ),
           ),
         );
       },

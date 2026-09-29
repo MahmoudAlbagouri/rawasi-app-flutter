@@ -21,6 +21,7 @@ class StudentStats {
   final Pacing pacing;
   final Leaderboard leaderboard;
   final Inactivity inactivity;
+  final Trial trial;
 
   StudentStats({
     required this.completion,
@@ -30,6 +31,7 @@ class StudentStats {
     required this.pacing,
     required this.leaderboard,
     required this.inactivity,
+    required this.trial,
   });
 
   factory StudentStats.fromJson(Map<String, dynamic> json) {
@@ -45,8 +47,50 @@ class StudentStats {
       // Added after the other keys, so an older payload without it still
       // parses - the card then renders its "never started" state.
       inactivity: Inactivity.fromJson(json['inactivity'] ?? const {}),
+      trial: Trial.fromJson(json['trial'] ?? const {}),
     );
   }
+}
+
+/// The free trial, as the server defines it.
+///
+/// Every figure is computed server-side (config/subscription.php, anchored on
+/// students.active_at) and simply displayed here — the app does no date
+/// arithmetic of its own, so a device in another timezone cannot disagree with
+/// the dashboard about which day it is.
+///
+/// [started] is false for a student who has not been activated yet. That is
+/// different from having zero days left, and the UI must not render a
+/// countdown for them.
+class Trial {
+  final bool started;
+  final int totalDays;
+  final int? daysUsed;
+  final int? daysRemaining;
+  final String? endsAt;
+  final bool hasEnded;
+
+  Trial({
+    required this.started,
+    required this.totalDays,
+    this.daysUsed,
+    this.daysRemaining,
+    this.endsAt,
+    this.hasEnded = false,
+  });
+
+  factory Trial.fromJson(Map<String, dynamic> json) => Trial(
+        started: json['started'] == true,
+        totalDays: _int(json['total_days']),
+        daysUsed: json['days_used'] == null ? null : _int(json['days_used']),
+        daysRemaining:
+            json['days_remaining'] == null ? null : _int(json['days_remaining']),
+        endsAt: json['ends_at']?.toString(),
+        hasEnded: json['has_ended'] == true,
+      );
+
+  /// Nothing to show before the trial starts.
+  bool get isVisible => started;
 }
 
 /// Days since the student last studied a new lesson.

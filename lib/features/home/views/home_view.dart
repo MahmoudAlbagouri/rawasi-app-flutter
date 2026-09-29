@@ -32,6 +32,8 @@ import 'package:rawasi_app_n/features/home/widgets/pending_step_banner.dart';
 import 'package:rawasi_app_n/features/home/widgets/library_preview.dart';
 import 'package:rawasi_app_n/features/home/widgets/stats_summary_card.dart';
 import 'package:rawasi_app_n/features/home/widgets/subjects_grid.dart';
+import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
+import 'package:rawasi_app_n/shared/study_reminder_card.dart';
 import 'package:rawasi_app_n/features/library/data/subject_item.dart';
 import 'package:rawasi_app_n/features/library/questions_view.dart';
 import 'package:rawasi_app_n/features/library/subjects_view.dart';
@@ -101,7 +103,11 @@ class _HomeViewState extends State<HomeView> {
   /// Straight into a subject's lessons — the whole point of the grid is fewer
   /// taps between opening the app and studying.
   Future<void> _openSubject(Course course) => _open(
-        CourseLessonsView(courseId: course.id, courseName: course.name),
+        CourseLessonsView(
+          courseId: course.id,
+          courseName: course.name,
+          progress: course.progress,
+        ),
       );
 
   Future<void> _openCourses(Student? profile) async {
@@ -143,7 +149,7 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 0),
+      bottomNavigationBar: const CustomBottomNavBar(current: NavTab.home),
     );
   }
 
@@ -203,6 +209,11 @@ class _HomeViewState extends State<HomeView> {
         const Gap(22),
       ],
 
+      // Free trial, and the "you have not studied in a while" nudge. Both
+      // only appear when they have something to say.
+      ..._trialSection(data),
+      ..._reminderSection(data),
+
       // 3. A study action within the first scroll.
       ..._subjectsSection(data, loading),
 
@@ -220,6 +231,64 @@ class _HomeViewState extends State<HomeView> {
   }
 
   // -------------------------------------------------------------- sections
+
+  /// The free-trial card. Hidden entirely before activation — a student with
+  /// no start date has no trial running, and a countdown from null would be
+  /// a fabrication.
+  List<Widget> _trialSection(HomeData data) {
+    final trial = data.stats?.trial;
+
+    if (trial == null || !trial.isVisible) return const [];
+
+    return [
+      _animated(260, TrialCard(trial: trial)),
+      const Gap(22),
+    ];
+  }
+
+  /// The study reminder, from the SAME widget إحصائياتي uses.
+  ///
+  /// Shown once it is meaningful (2+ days) so it does not become permanent
+  /// furniture, and tapping it goes straight to the next lesson worth doing.
+  /// Driven by delay_days alone — it makes no claim about lesson unlocking,
+  /// which runs on a separate clock.
+  List<Widget> _reminderSection(HomeData data) {
+    final stats = data.stats;
+
+    if (stats == null || !StudyReminderCard.shouldShowOnHome(stats.inactivity)) {
+      return const [];
+    }
+
+    return [
+      _animated(
+        280,
+        StudyReminderCard(
+          inactivity: stats.inactivity,
+          compact: true,
+          onContinue: () => _openNextLesson(data),
+        ),
+      ),
+      const Gap(22),
+    ];
+  }
+
+  /// The first subject with unfinished work, else the courses list.
+  void _openNextLesson(HomeData data) {
+    final courses = data.courses ?? const [];
+
+    if (courses.isEmpty) {
+      _openCourses(data.profile);
+
+      return;
+    }
+
+    final next = courses.firstWhere(
+      (c) => (c.progress?.percentage ?? 0) < 100,
+      orElse: () => courses.first,
+    );
+
+    _openSubject(next);
+  }
 
   Widget _statsSection(HomeData data, bool loading) {
     final stats = data.stats;

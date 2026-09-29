@@ -10,7 +10,16 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/core/models/student.dart';
+import 'package:rawasi_app_n/core/profile/profile_repository.dart';
+import 'package:rawasi_app_n/core/utils/auth_helper.dart';
+import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
+import 'package:rawasi_app_n/features/stats/widgets/my_rank_card.dart';
+import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
+import 'package:rawasi_app_n/shared/auth_actions.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
+import 'package:rawasi_app_n/shared/study_reminder_card.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/stats/data/stats_repo.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
@@ -24,23 +33,63 @@ class StatisticsView extends StatefulWidget {
   State<StatisticsView> createState() => _StatisticsViewState();
 }
 
+/// What the screen can show, resolved before /analytics is ever called.
+class _StatsPage {
+  /// Non-null when the student cannot see statistics at all.
+  final GateReason? gate;
+  final StudentStats? stats;
+
+  const _StatsPage({this.gate, this.stats});
+}
+
 class _StatisticsViewState extends State<StatisticsView> {
-  late Future<StudentStats> _future;
+  late Future<_StatsPage> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = StatsRepo().fetchStats();
+    _future = _load();
+  }
+
+  /// Checks auth and activation FIRST.
+  ///
+  /// /analytics sits behind auth:student + student.active, so for a signed-out
+  /// or unactivated student the call is guaranteed to fail. Firing it anyway
+  /// produced a raw API message under an "إعادة المحاولة" button that could
+  /// never succeed — retrying does not log anybody in. The same two states are
+  /// already modelled by AccountGate, which courses_view uses.
+  Future<_StatsPage> _load() async {
+    if (!await isUserSignedIn()) {
+      return const _StatsPage(gate: GateReason.signedOut);
+    }
+
+    Student? profile;
+    try {
+      profile = await ProfileRepository().fetchProfile();
+    } catch (_) {
+      // Profile itself failed: fall through and let the stats call decide, so
+      // a transient network error still gets the retry button.
+      profile = null;
+    }
+
+    if (profile != null) {
+      final reason = gateFor(profile);
+      if (reason != null) return _StatsPage(gate: reason);
+    }
+
+    return _StatsPage(stats: await StatsRepo().fetchStats());
   }
 
   void _reload() {
-    setState(() => _future = StatsRepo().fetchStats());
+    setState(() => _future = _load());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.gray50,
+      // Same treatment as home / courses / library: a white base under the
+      // shared BrandBackdrop, rather than a flat gray50.
+      backgroundColor: AppColors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -64,18 +113,32 @@ class _StatisticsViewState extends State<StatisticsView> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: FutureBuilder<StudentStats>(
+      body: BrandBackdrop(
+        child: SafeArea(
+        child: FutureBuilder<_StatsPage>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
+            // _error keeps its retry button for genuine network/server
+            // failures, where retrying actually helps.
             if (snapshot.hasError) {
               return _error(snapshot.error);
             }
 
-            final stats = snapshot.data!;
+            final page = snapshot.data!;
+
+            if (page.gate != null) {
+              return AccountGate(
+                reason: page.gate!,
+                action: page.gate == GateReason.signedOut
+                    ? const AuthActions()
+                    : null,
+              );
+            }
+
+            final stats = page.stats!;
             return RefreshIndicator(
               onRefresh: () async => _reload(),
               child: ListView(
@@ -87,7 +150,9 @@ class _StatisticsViewState extends State<StatisticsView> {
                   const Gap(16),
                   _pacingCard(stats.pacing),
                   const Gap(16),
-                  _inactivityCard(stats.inactivity),
+                  TrialCard(trial: stats.trial),
+                  const Gap(16),
+                  StudyReminderCard(inactivity: stats.inactivity),
                   const Gap(20),
                   _sectionTitle('تقدم المواد'),
                   const Gap(12),
@@ -104,6 +169,8 @@ class _StatisticsViewState extends State<StatisticsView> {
                     ),
                   ),
                   const Gap(12),
+                  MyRankCard(board: stats.leaderboard),
+                  const Gap(12),
                   _leaderboardCard(stats.leaderboard, myCompletedLessons: stats.completion.completedLessons),
                   const Gap(24),
                 ],
@@ -111,8 +178,9 @@ class _StatisticsViewState extends State<StatisticsView> {
             );
           },
         ),
+        ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 4),
+      bottomNavigationBar: const CustomBottomNavBar(current: NavTab.stats),
     );
   }
 
@@ -428,51 +496,9 @@ class _StatisticsViewState extends State<StatisticsView> {
   // Days since the last new lesson
   // ---------------------------------------------------------------------------
 
-  Widget _inactivityCard(Inactivity a) {
-    final days = a.delayDays;
-
-    final (Color accent, IconData icon) = switch (days) {
-      null => (AppColors.gray500, Icons.hourglass_empty),
-      0 => (AppColors.success600, Icons.check_circle_outline),
-      _ when days < 3 => (AppColors.brandPrimary, Icons.schedule),
-      _ => (AppColors.warning700, Icons.lock_open_outlined),
-    };
-
-    return _card(
-      child: Row(
-        children: [
-          Icon(icon, color: accent, size: 30),
-          const Gap(14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomText(
-                  text: 'أيام الانقطاع عن الدروس الجديدة',
-                  color: AppColors.gray900,
-                  size: 15,
-                  weight: FontWeight.bold,
-                ),
-                const Gap(6),
-                CustomText(
-                  text: a.label,
-                  color: accent,
-                  size: 14,
-                  weight: FontWeight.w600,
-                ),
-                const Gap(2),
-                CustomText(
-                  text: a.hint,
-                  color: AppColors.gray600,
-                  size: 12,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // The reminder itself lives in StudyReminderCard, shared with home so the
+  // two cannot drift. It is driven by delay_days alone and knows nothing
+  // about lesson unlocking.
 
   // ---------------------------------------------------------------------------
   // 2. Per-subject progress
@@ -677,19 +703,11 @@ class _StatisticsViewState extends State<StatisticsView> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       child: Column(
         children: [
+          // The student's own standing now has a dedicated card ABOVE this
+          // list (_myRankCard), shown always — including when they are inside
+          // the top ten, which is the motivating case the old conditional
+          // append suppressed. The in-list highlight stays.
           ...board.top.map(_leaderboardRow),
-          if (board.myRank != null && !board.top.any((e) => e.isCurrentStudent)) ...[
-            const Divider(height: 16),
-            _leaderboardRow(
-              LeaderboardEntry(
-                rank: board.myRank!,
-                name: 'ترتيبك',
-                points: board.myPoints,
-                completedLessons: myCompletedLessons,
-                isCurrentStudent: true,
-              ),
-            ),
-          ],
         ],
       ),
     );

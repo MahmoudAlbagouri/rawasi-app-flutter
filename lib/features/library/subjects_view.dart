@@ -176,7 +176,7 @@ class _SubjectsViewState extends State<SubjectsView> {
         ),
         ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(selectedIndex: 2),
+      bottomNavigationBar: const CustomBottomNavBar(current: NavTab.library),
     );
   }
 
