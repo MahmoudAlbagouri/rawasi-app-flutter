@@ -223,7 +223,8 @@ class AuthRepo {
   // ---------------------------------------------------------------------------
   // Forget Password - Check OTP
   // ---------------------------------------------------------------------------
-  Future<void> checkForgetPasswordOtp(String phone, String otp) async {
+  /// Returns the one-time reset token that [updateForgetPassword] requires.
+  Future<String> checkForgetPasswordOtp(String phone, String otp) async {
     try {
       final formData = FormData.fromMap({'phone': phone, 'otp': otp});
       final response = await apiServices.postFormData(
@@ -238,6 +239,11 @@ class AuthRepo {
         if (!success) {
           throw ApiError(message: response['message'] ?? "رمز التحقق غير صحيح");
         }
+        final token = (response['data'] as Map?)?['reset_token'];
+        if (token is! String || token.isEmpty) {
+          throw ApiError(message: "استجابة غير متوقعة من الخادم");
+        }
+        return token;
       } else {
         throw ApiError(message: "استجابة غير متوقعة من الخادم");
       }
@@ -254,12 +260,14 @@ class AuthRepo {
   // ---------------------------------------------------------------------------
   Future<void> updateForgetPassword({
     required String phone,
+    required String resetToken,
     required String password,
     required String passwordConfirmation,
   }) async {
     try {
       final formData = FormData.fromMap({
         'phone': phone,
+        'reset_token': resetToken,
         'password': password,
         'password_confirmation': passwordConfirmation,
       });

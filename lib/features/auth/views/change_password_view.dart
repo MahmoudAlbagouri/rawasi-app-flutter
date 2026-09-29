@@ -1,6 +1,7 @@
 // lib/features/auth/views/change_password_view.dart
 
 import 'package:dio/dio.dart';
+import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
@@ -65,6 +66,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       final response = await ApiServices().postFormData(
         '/update-password',
         FormData.fromMap({
+          'current_password': _currentPasswordController.text,
           'password': _newPasswordController.text,
           'password_confirmation': _confirmPasswordController.text,
         }),
@@ -83,9 +85,12 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
         _newPasswordController.clear();
         _confirmPasswordController.clear();
       } else {
-        final message = response is Map && response['message'] != null
-            ? response['message']
-            : 'حدث خطأ أثناء التحديث';
+        // Errors (e.g. a wrong current password, 422) arrive as ApiError, not a Map.
+        final message = response is ApiError
+            ? response.message
+            : response is Map && response['message'] != null
+                ? response['message']
+                : 'حدث خطأ أثناء التحديث';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -132,12 +137,17 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
                 ),
                 const Gap(16),
 
-                // كلمة المرور الحالية (اختياري حسب الـ API)
-                // PasswordField(
-                //   controller: _currentPasswordController,
-                //   label: 'كلمة المرور الحالية',
-                //   validator: (value) => value!.isEmpty ? 'الحقل مطلوب' : null,
-                // ),
+                // Required by the API, so a stolen session alone cannot change the password.
+                PasswordField(
+                  controller: _currentPasswordController,
+                  label: 'كلمة المرور الحالية',
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'يرجى إدخال كلمة المرور الحالية'
+                      : null,
+                  enabled: !_isSubmitting,
+                ),
+                const Gap(16),
+
                 PasswordField(
                   controller: _newPasswordController,
                   label: 'كلمة المرور الجديدة',

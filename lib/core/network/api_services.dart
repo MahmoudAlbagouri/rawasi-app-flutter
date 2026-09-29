@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rawasi_app_n/core/network/api_exceptions.dart';
 import 'package:rawasi_app_n/core/network/dio_client.dart';
 
@@ -47,8 +48,9 @@ class ApiServices {
       final response = await _dioClient.dio.post(endPoints, data: data);
       return response.data;
     } on DioException catch (e) {
-      if (e.response != null) {
-        print('API Error: ${e.response?.data}'); // ← طباعة الرد الكامل
+      // Debug builds only: print() reaches logcat in release builds too.
+      if (kDebugMode && e.response != null) {
+        debugPrint('API Error: ${e.response?.data}');
       }
       return ApiExceptions.handleError(e);
     }
@@ -59,8 +61,8 @@ class ApiServices {
       final response = await _dioClient.dio.delete(endPoints, data: data);
       return response.data;
     } on DioException catch (e) {
-      if (e.response != null) {
-        print('DELETE API Error: ${e.response?.data}');
+      if (kDebugMode && e.response != null) {
+        debugPrint('DELETE API Error: ${e.response?.data}');
       }
       return ApiExceptions.handleError(e);
     }

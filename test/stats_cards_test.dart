@@ -126,12 +126,33 @@ void main() {
   group('StudyReminderCard', () {
     Inactivity days(int? d) => Inactivity(delayDays: d);
 
-    test('home only shows it once it is meaningful', () {
+    test('the delay count is shown continuously, not above a threshold', () {
+      // The count has to be visible at a glance at all times, so home shows it
+      // from day zero. Only a student who has never studied is skipped —
+      // there is no gap to count, and home gives them a "start here" instead.
       expect(StudyReminderCard.shouldShowOnHome(days(null)), isFalse);
-      expect(StudyReminderCard.shouldShowOnHome(days(0)), isFalse);
-      expect(StudyReminderCard.shouldShowOnHome(days(1)), isFalse);
+      expect(StudyReminderCard.shouldShowOnHome(days(0)), isTrue);
+      expect(StudyReminderCard.shouldShowOnHome(days(1)), isTrue);
       expect(StudyReminderCard.shouldShowOnHome(days(2)), isTrue);
       expect(StudyReminderCard.shouldShowOnHome(days(9)), isTrue);
+    });
+
+    testWidgets('states the 3-day guideline before it is exceeded',
+        (tester) async {
+      await tester.pumpWidget(_wrap(StudyReminderCard(inactivity: days(1))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('مر يوم منذ آخر درس'), findsOneWidget);
+      expect(find.text('حاول ألا تتجاوز 3 أيام بدون درس جديد'), findsOneWidget);
+    });
+
+    testWidgets('instructs plainly once the guideline is passed',
+        (tester) async {
+      await tester.pumpWidget(_wrap(StudyReminderCard(inactivity: days(5))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('مر 5 أيام منذ آخر درس'), findsOneWidget);
+      expect(find.text('تجاوزت 3 أيام — ابدأ درسًا جديدًا اليوم'), findsOneWidget);
     });
 
     testWidgets('never-started and studied-today are distinct states',
@@ -165,10 +186,12 @@ void main() {
       await tester.pumpWidget(_wrap(StudyReminderCard(inactivity: days(6))));
       await tester.pumpAndSettle();
 
+      // Still no claim about unlocking, and still no loss framing — the
+      // 3-day line is an instruction, not a threat.
       expect(find.textContaining('مفتوح'), findsNothing);
       expect(find.textContaining('ستفقد'), findsNothing);
-      expect(find.textContaining('تبقى'), findsNothing);
-      expect(find.textContaining('واصل رحلتك'), findsOneWidget);
+      expect(find.textContaining('سينتهي'), findsNothing);
+      expect(find.textContaining('ابدأ درسًا جديدًا اليوم'), findsOneWidget);
     });
 
     testWidgets('is tappable when a destination is given', (tester) async {

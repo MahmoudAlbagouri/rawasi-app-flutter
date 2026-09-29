@@ -13,7 +13,14 @@ import 'package:rawasi_app_n/shared/custom_text_field.dart';
 class ForgotPasswordNewPasswordView extends StatefulWidget {
   final String phone;
 
-  const ForgotPasswordNewPasswordView({super.key, required this.phone});
+  /// Issued by check-forget-password-otp; the server refuses the new password without it.
+  final String resetToken;
+
+  const ForgotPasswordNewPasswordView({
+    super.key,
+    required this.phone,
+    required this.resetToken,
+  });
 
   @override
   State<ForgotPasswordNewPasswordView> createState() =>
@@ -64,6 +71,7 @@ class _ForgotPasswordNewPasswordViewState
     try {
       await _authRepo.updateForgetPassword(
         phone: widget.phone,
+        resetToken: widget.resetToken,
         password: pass,
         passwordConfirmation: confirmPass,
       );

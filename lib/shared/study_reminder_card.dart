@@ -24,9 +24,14 @@ import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
 
-/// Below this, the reminder is not worth showing on home — it would be
-/// permanent furniture rather than a nudge.
-const int kHomeReminderThreshold = 2;
+/// The guideline the reminder states: don't let more than this many days pass
+/// without progressing in the curriculum.
+///
+/// It is a TARGET, not a deadline. Nothing expires when it is exceeded — the
+/// auto-unlock in LessonProgressService runs on its own separate clock and
+/// takes nothing away — so the copy instructs and encourages, and never warns
+/// about losing access.
+const int kStudyGapTargetDays = 3;
 
 class StudyReminderCard extends StatelessWidget {
   final Inactivity inactivity;
@@ -46,15 +51,24 @@ class StudyReminderCard extends StatelessWidget {
   });
 
   /// Whether home should show it at all.
-  static bool shouldShowOnHome(Inactivity inactivity) {
-    final days = inactivity.delayDays;
-
-    return days != null && days >= kHomeReminderThreshold;
-  }
+  ///
+  /// Shown CONTINUOUSLY once the student has started, so the delay count is
+  /// always on screen rather than appearing only after a threshold. At zero
+  /// days it reads as positive confirmation ("درست اليوم") rather than a
+  /// nag, which is what keeps a permanently-visible card from becoming
+  /// furniture.
+  ///
+  /// Still hidden when [Inactivity.delayDays] is null — that is a student who
+  /// has never studied and has no gap to count. Home already gives them a
+  /// "start here" call to action.
+  static bool shouldShowOnHome(Inactivity inactivity) =>
+      inactivity.delayDays != null;
 
   // ---------------------------------------------------------------- copy
 
-  /// Three distinct states: never started, studied today, and N days elapsed.
+  /// Four states: never started, studied today, within the target, past it.
+  /// The day count is always part of the headline so it is visible at a
+  /// glance, which is the point of showing this continuously.
   String get _headline {
     final days = inactivity.delayDays;
 
@@ -68,10 +82,17 @@ class StudyReminderCard extends StatelessWidget {
     final days = inactivity.delayDays;
 
     if (days == null) return 'ابدأ أول درس لتبدأ متابعة تقدمك';
-    if (days == 0) return 'واصل التقدم';
+    if (days == 0) return 'واصل التقدم، وحافظ على وتيرتك';
 
-    // Encouragement only — nothing expires, so nothing is threatened.
-    return 'واصل رحلتك، خطوة صغيرة اليوم تكفي';
+    // Past the target: state it plainly and give an instruction. Factual and
+    // actionable — NOT a warning, because nothing has been lost.
+    if (days >= kStudyGapTargetDays) {
+      return 'تجاوزت $kStudyGapTargetDays أيام — ابدأ درسًا جديدًا اليوم';
+    }
+
+    // Inside the target: name the guideline so the student knows what to aim
+    // for before they drift past it.
+    return 'حاول ألا تتجاوز $kStudyGapTargetDays أيام بدون درس جديد';
   }
 
   Color get _accent {
@@ -79,7 +100,7 @@ class StudyReminderCard extends StatelessWidget {
 
     if (days == null) return AppColors.gray500;
     if (days == 0) return AppColors.success600;
-    if (days < 3) return AppColors.brandPrimary;
+    if (days < kStudyGapTargetDays) return AppColors.brandPrimary;
 
     return AppColors.warning700;
   }
