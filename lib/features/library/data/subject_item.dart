@@ -1,4 +1,4 @@
-﻿// lib/features/library/data/subject_item.dart
+// lib/features/library/data/subject_item.dart
 
 /// A subject in the student's library, as LibrarySubjectResource returns it.
 class SubjectItem {
@@ -47,7 +47,7 @@ class SubjectItem {
   /// after a local [copyWith] — removing a question updates the count here
   /// without a round trip, and a stale flag would still say "full".
   bool get isFull =>
-      maxSavedQuestions != null && savedQuestionsCount > maxSavedQuestions!;
+      maxSavedQuestions != null && savedQuestionsCount >= maxSavedQuestions!;
 
   /// How many more fit, or null when no cap is known.
   int? get remainingSlots => maxSavedQuestions == null

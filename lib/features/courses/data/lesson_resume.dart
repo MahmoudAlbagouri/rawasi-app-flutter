@@ -1,4 +1,4 @@
-﻿// lib/features/courses/data/lesson_resume.dart
+// lib/features/courses/data/lesson_resume.dart
 //
 // Deciding what a sitting of a lesson should actually ask.
 //
