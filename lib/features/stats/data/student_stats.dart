@@ -255,9 +255,16 @@ class Pacing {
   final double lessonsPerWeek;
   final int remainingLessons;
 
-  /// Already in the payload; needed to tell a real weekly average from a
-  /// first-day burst, where the rate outruns the work actually done.
+  /// The numerator of the ratio: lessons finished, all time.
   final int completedLessons;
+
+  /// The denominator: which week of studying the student is IN, counted from
+  /// one. Zero means they have not started.
+  ///
+  /// Computed server-side from the first study day. The app must not derive it
+  /// from dates of its own — a device in another timezone would disagree with
+  /// the dashboard about which day it is.
+  final int weeksElapsed;
 
   final String? estimatedCompletionDate;
 
@@ -265,15 +272,38 @@ class Pacing {
     required this.lessonsPerWeek,
     required this.remainingLessons,
     this.completedLessons = 0,
+    this.weeksElapsed = 0,
     this.estimatedCompletionDate,
   });
 
-  factory Pacing.fromJson(Map<String, dynamic> json) => Pacing(
-        lessonsPerWeek: _num(json['lessons_per_week']),
-        remainingLessons: _int(json['remaining_lessons']),
-        completedLessons: _int(json['completed_lessons']),
-        estimatedCompletionDate: json['estimated_completion_date']?.toString(),
-      );
+  factory Pacing.fromJson(Map<String, dynamic> json) {
+    final completed = _int(json['completed_lessons']);
+    final weeks = _int(json['weeks_elapsed']);
+
+    return Pacing(
+      lessonsPerWeek: _num(json['lessons_per_week']),
+      remainingLessons: _int(json['remaining_lessons']),
+      completedLessons: completed,
+      // A backend that does not send weeks_elapsed, or a response cached from
+      // one, would otherwise pair real progress with a zero denominator and the
+      // card would print "5 / 0". Lessons exist, so at least one week does:
+      // floor it at one and the ratio stays a sentence rather than a division
+      // by zero. Zero weeks remains possible, and means zero lessons.
+      weeksElapsed: completed > 0 && weeks < 1 ? 1 : weeks,
+      estimatedCompletionDate: json['estimated_completion_date']?.toString(),
+    );
+  }
+
+  /// True once there is a week to divide by.
+  bool get hasStarted => weeksElapsed > 0;
+
+  /// "6 / 2" — lessons finished over weeks studying.
+  ///
+  /// Must be rendered inside an LTR Directionality. The bidi algorithm treats
+  /// the spaces and the slash between two digit runs as neutral, so in an
+  /// Arabic (RTL) paragraph this string lays out as "2 / 6" — the two numbers
+  /// swapped, which is a different and wrong claim.
+  String get ratioLabel => '$completedLessons / $weeksElapsed';
 }
 
 class Leaderboard {

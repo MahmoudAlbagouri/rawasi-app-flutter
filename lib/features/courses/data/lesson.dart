@@ -10,6 +10,20 @@ class Lesson {
   final int completedQuestionsCount;
   final String? unlockedAt;
 
+  /// True when SUBSCRIBING is what would open this lesson — the free-plan
+  /// allowance is the only thing in the way.
+  ///
+  /// Deliberately narrower than "locked and past the allowance": the backend
+  /// only sets it when the previous lesson is already complete, so paying
+  /// really would open this one. A lesson held by both the paywall and the
+  /// sequence arrives as an ordinary lock, because telling the student to pay
+  /// would not open what they just tapped.
+  final bool requiresPayment;
+
+  /// How many of this course's lessons the free plan reaches, or null when the
+  /// student is not capped.
+  final int? freeLimitLessons;
+
   Lesson({
     required this.id,
     required this.courseId,
@@ -21,6 +35,8 @@ class Lesson {
     required this.questionsCount,
     required this.completedQuestionsCount,
     this.unlockedAt,
+    this.requiresPayment = false,
+    this.freeLimitLessons,
   });
 
   factory Lesson.fromJson(Map<String, dynamic> json) {
@@ -35,6 +51,8 @@ class Lesson {
       questionsCount: json['questions_count'] as int? ?? 0,
       completedQuestionsCount: json['completed_questions_count'] as int? ?? 0,
       unlockedAt: json['unlocked_at'] as String?,
+      requiresPayment: json['requires_payment'] == true,
+      freeLimitLessons: json['free_limit_lessons'] as int?,
     );
   }
 

@@ -34,55 +34,57 @@ class MyRankCard extends StatelessWidget {
     final inTopTen = board.top.any((e) => e.isCurrentStudent);
 
     return HomeCard(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: AppColors.primary50,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.brandPrimary, width: 2),
-            ),
-            alignment: Alignment.center,
-            child: CustomText(
-              text: '$rank',
-              color: AppColors.brandPrimary,
-              size: 20,
-              weight: FontWeight.bold,
-            ),
-          ),
-          const Gap(16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomText(
-                  text: 'أنت في المركز $rank',
-                  color: AppColors.gray900,
-                  size: 16,
-                  weight: FontWeight.bold,
+          Row(
+            children: [
+              const CustomText(
+                text: 'ترتيبك',
+                color: AppColors.gray600,
+                size: 13,
+                weight: FontWeight.w600,
+              ),
+              const Spacer(),
+              if (inTopTen)
+                const Icon(
+                  Icons.emoji_events,
+                  color: Color(0xFFD4AF37),
+                  size: 22,
                 ),
-                const Gap(4),
-                CustomText(
+            ],
+          ),
+          const Gap(10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // The rank is the headline figure, as in the reference.
+              CustomText(
+                text: '#$rank',
+                color: AppColors.brandPrimary,
+                size: 32,
+                weight: FontWeight.bold,
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: CustomText(
                   text: arabicPoints(board.myPoints),
-                  color: AppColors.brandPrimary,
+                  color: AppColors.gray700,
                   size: 14,
                   weight: FontWeight.w600,
                 ),
-                const Gap(2),
-                CustomText(
-                  text: inTopTen
-                      ? 'ضمن أول عشرة في ${board.scopeLabel}'
-                      : 'نقطة لكل سؤال تحله',
-                  color: AppColors.gray600,
-                  size: 12,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          if (inTopTen)
-            const Icon(Icons.emoji_events, color: Color(0xFFD4AF37), size: 28),
+          const Gap(6),
+          CustomText(
+            text: inTopTen
+                ? 'ضمن أول عشرة في ${board.scopeLabel}'
+                : 'نقطة لكل سؤال تحله',
+            color: AppColors.gray600,
+            size: 12,
+          ),
         ],
       ),
     );

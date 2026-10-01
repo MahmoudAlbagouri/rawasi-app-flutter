@@ -4,12 +4,20 @@ import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/home/data/home_data.dart';
 import 'package:rawasi_app_n/features/home/widgets/library_preview.dart';
 import 'package:rawasi_app_n/features/home/widgets/stats_summary_card.dart';
-import 'package:rawasi_app_n/features/home/widgets/subjects_grid.dart';
+import 'package:rawasi_app_n/features/courses/data/subject_group.dart';
 import 'package:rawasi_app_n/features/library/data/subject_item.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
 
-Course _course(int id, String name, {String? term, double percent = 0}) =>
+Course _course(
+  int id,
+  String name, {
+  String? term,
+  double percent = 0,
+  int completed = 0,
+  int total = 39,
+  int available = 6,
+}) =>
     Course.fromJson({
       'id': id,
       'name': name,
@@ -17,11 +25,20 @@ Course _course(int id, String name, {String? term, double percent = 0}) =>
       'madhab': 'all',
       'term': term,
       'progress': {
-        'completed_lessons': 0,
-        'total_lessons': 39,
-        'available_lessons': 6,
+        'completed_lessons': completed,
+        'total_lessons': total,
+        'available_lessons': available,
         'percentage': percent,
       },
+    });
+
+/// A course the API returned without a progress block.
+Course _bareCourse(int id, String name) => Course.fromJson({
+      'id': id,
+      'name': name,
+      'academic_year': '1',
+      'madhab': 'all',
+      'term': null,
     });
 
 SubjectProgress _subject(String label, int done, int total) =>
@@ -75,77 +92,78 @@ void main() {
     });
   });
 
-  group('subject tiles', () {
+  group('subject grouping', () {
     test('both terms of one subject collapse into a single card', () {
-      // Grades 1-2 see both terms since term scoping was dropped, so /courses
-      // returns التفسير twice. Ten near-identical cards would be noise.
-      final tiles = buildSubjectTiles(
-        [
-          _course(1, 'التفسير', term: '1'),
-          _course(2, 'التفسير', term: '2'),
-          _course(3, 'الحديث', term: '1'),
-          _course(4, 'الحديث', term: '2'),
-        ],
-        [_subject('التفسير', 5, 39), _subject('الحديث', 0, 30)],
-      );
+      // The reported bug: grades 1-2 are returned both terms of every subject,
+      // so the raw list rendered "التفسير" twice, "التوحيد" twice, and so on.
+      final groups = groupCoursesBySubject([
+        _course(1, 'التفسير', term: '1'),
+        _course(2, 'التفسير', term: '2'),
+        _course(3, 'الحديث', term: '1'),
+        _course(4, 'الحديث', term: '2'),
+      ]);
 
-      expect(tiles, hasLength(2));
-      expect(tiles.map((t) => t.name), containsAll(['التفسير', 'الحديث']));
+      expect(groups, hasLength(2), reason: '4 course rows, 2 subjects');
+      expect(groups.map((g) => g.name), ['التفسير', 'الحديث']..sort());
     });
 
-    test('the denominator comes from analytics, not from summing courses', () {
-      // Each course reports the SUBJECT's full total (39), so summing the two
-      // terms would wrongly show 78.
-      final tiles = buildSubjectTiles(
-        [_course(1, 'التفسير', term: '1'), _course(2, 'التفسير', term: '2')],
-        [_subject('التفسير', 5, 39)],
-      );
+    test('the total is NOT summed across terms', () {
+      // Each term row already carries the whole-subject total (39), so summing
+      // would show 78 and halve every percentage.
+      final groups = groupCoursesBySubject([
+        _course(1, 'التفسير', term: '1', completed: 1, total: 39, available: 4),
+        _course(2, 'التفسير', term: '2', completed: 0, total: 39, available: 0),
+      ]);
 
-      expect(tiles.single.countLabel, '5 من 39');
-      expect(tiles.single.fraction, closeTo(5 / 39, 0.001));
+      expect(groups.single.totalLessons, 39);
+      expect(groups.single.countLabel, '1 من 39');
+    });
+
+    test('completed and available ARE summed across terms', () {
+      // Each course owns its own lessons, so these do not overlap.
+      final groups = groupCoursesBySubject([
+        _course(1, 'التفسير', term: '1', completed: 2, total: 39, available: 4),
+        _course(2, 'التفسير', term: '2', completed: 3, total: 39, available: 6),
+      ]);
+
+      expect(groups.single.completedLessons, 5);
+      expect(groups.single.availableLessons, 10);
+      expect(groups.single.percentage, closeTo(5 / 39 * 100, 0.01));
+    });
+
+    test('grade 3 has one term and is unaffected', () {
+      final groups = groupCoursesBySubject([
+        _course(1, 'الميراث', completed: 10, total: 10, available: 10),
+      ]);
+
+      expect(groups.single.totalLessons, 10);
+      expect(groups.single.completedLessons, 10);
     });
 
     test('tapping opens the first term still incomplete', () {
-      final tiles = buildSubjectTiles(
-        [
-          _course(1, 'التفسير', term: '1', percent: 100),
-          _course(2, 'التفسير', term: '2', percent: 20),
-        ],
-        [_subject('التفسير', 20, 39)],
-      );
+      final groups = groupCoursesBySubject([
+        _course(1, 'التفسير', term: '1', percent: 100),
+        _course(2, 'التفسير', term: '2', percent: 20),
+      ]);
 
-      // Not always term 1 — the student is working through term 2.
-      expect(tiles.single.target.id, 2);
+      expect(groups.single.target.id, 2, reason: 'not always term 1');
     });
 
     test('falls back to the first course when everything is complete', () {
-      final tiles = buildSubjectTiles(
-        [
-          _course(1, 'التفسير', term: '1', percent: 100),
-          _course(2, 'التفسير', term: '2', percent: 100),
-        ],
-        [_subject('التفسير', 39, 39)],
-      );
+      final groups = groupCoursesBySubject([
+        _course(1, 'التفسير', term: '1', percent: 100),
+        _course(2, 'التفسير', term: '2', percent: 100),
+      ]);
 
-      expect(tiles.single.target.id, 1);
+      expect(groups.single.target.id, 1);
     });
 
-    test('cards still render when analytics is unavailable', () {
-      // The gate-aware case: /analytics 403s but /courses did not.
-      final tiles = buildSubjectTiles([_course(1, 'التفسير', term: '1')], const []);
+    test('a course with no progress payload still renders and opens', () {
+      final groups = groupCoursesBySubject([_bareCourse(9, 'مادة جديدة')]);
 
-      expect(tiles, hasLength(1));
-      expect(tiles.single.countLabel, isNull, reason: 'no figures to show');
-      expect(tiles.single.target.id, 1, reason: 'but it must still be openable');
-    });
-
-    test('a subject with no analytics match carries no numbers', () {
-      final tiles = buildSubjectTiles(
-        [_course(9, 'مادة غير معروفة', term: '1')],
-        [_subject('التفسير', 5, 39)],
-      );
-
-      expect(tiles.single.countLabel, isNull);
+      expect(groups.single.hasProgress, isFalse);
+      expect(groups.single.countLabel, isNull);
+      expect(groups.single.target.id, 9);
     });
   });
 

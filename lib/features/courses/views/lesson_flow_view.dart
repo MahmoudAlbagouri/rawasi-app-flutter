@@ -20,6 +20,8 @@ import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
+import 'package:rawasi_app_n/features/courses/data/lesson_resume.dart';
+import 'package:rawasi_app_n/features/contact/data/contact_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/question.dart';
 import 'package:rawasi_app_n/features/library/data/library_repo.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
@@ -73,6 +75,14 @@ class _LessonFlowViewState extends State<LessonFlowView>
   final List<Question> _reviewQueue = [];
   int _easyCount = 0;
 
+  /// Set when this sitting picked up a part-finished lesson instead of starting
+  /// it over. Drives the notice at the top, so a student who left after question
+  /// 5 of 20 understands why they are now looking at question 1 of 15.
+  int _resumedFrom = 0;
+  int _resumedTotal = 0;
+
+  bool get _isResumed => _resumedFrom > 0;
+
   /// Time actually spent on screen, per question.
   ///
   /// A monotonic Stopwatch, not wall-clock arithmetic: the device clock can
@@ -94,6 +104,15 @@ class _LessonFlowViewState extends State<LessonFlowView>
   /// Course figures for the completion screen.
   List<Lesson> _courseLessons = [];
   Lesson? _nextLesson;
+
+  /// True when the lesson that WOULD have come next is held by the free-plan
+  /// allowance rather than by anything the student still has to do.
+  ///
+  /// [_nextLesson] already excludes it, correctly — it only ever offers an
+  /// unlocked lesson. But "no next lesson" and "the next lesson needs a
+  /// subscription" look identical on this screen without this, and the moment a
+  /// student finishes their last free lesson is exactly when the reason matters.
+  bool _nextNeedsSubscription = false;
 
   Question get _current => _pass[_index];
   bool get _isReviewPass => _phase == _Phase.review;
@@ -161,17 +180,20 @@ class _LessonFlowViewState extends State<LessonFlowView>
       final questions = await _repo.fetchQuestions(widget.lessonId);
       if (!mounted) return;
 
-      // Every question is replayed, completed ones included: a lesson can be
-      // re-solved as often as the student likes. The complete calls it makes
-      // are no-ops server-side for already-recorded questions, so a replay
-      // never changes progress, statistics or unlocks.
       if (questions.isEmpty) {
         await _finish();
         return;
       }
 
+      // Pick up where the student left off rather than restarting at question
+      // one. The rule, and why a fully-completed lesson still replays from the
+      // start, is in lesson_resume.dart.
+      final resume = resumeLesson(questions);
+
       setState(() {
-        _pass = questions;
+        _pass = resume.questions;
+        _resumedFrom = resume.alreadyDone;
+        _resumedTotal = resume.total;
         _index = 0;
         _easyCount = 0;
         _reviewQueue.clear();
@@ -273,6 +295,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
       _nextLesson = lessons
           .where((l) => l.id != widget.lessonId && !l.isCompleted && l.isUnlocked)
           .fold<Lesson?>(null, (best, l) => best == null || l.order < best.order ? l : best);
+
+      _nextNeedsSubscription =
+          _nextLesson == null && lessons.any((l) => l.requiresPayment);
     } catch (_) {
       // The lesson is already completed server-side; stats are a nice-to-have.
     }
@@ -401,6 +426,13 @@ class _LessonFlowViewState extends State<LessonFlowView>
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(
             children: [
+              // Shown only on the first pass of a resumed sitting. The counters
+              // below it are relative to what is LEFT, so without this line
+              // "السؤال 1 من 15" of a 20-question lesson looks like lost work.
+              if (_isResumed && !_isReviewPass) ...[
+                _resumeNotice(),
+                const Gap(12),
+              ],
               _counters(),
               const Gap(12),
               _progressBar(),
@@ -605,9 +637,190 @@ class _LessonFlowViewState extends State<LessonFlowView>
               style: TextButton.styleFrom(foregroundColor: AppColors.gray700),
             ),
           ],
+          // Available on every question, answer shown or not: a student who
+          // cannot make sense of the question itself is exactly who needs to
+          // ask about it, and making them reveal the answer first would be a
+          // strange toll to charge for asking.
+          TextButton.icon(
+            onPressed: _openFeedbackSheet,
+            icon: const Icon(Icons.flag_outlined, size: 20),
+            label: const Text('ملاحظة أو استفسار عن السؤال'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.gray600),
+          ),
         ],
       ),
     );
+  }
+
+  /// "تم استئناف الدرس — أكملت 5 من 20 سؤالاً".
+  Widget _resumeNotice() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.success50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.success500.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.play_circle_outline, color: AppColors.success700, size: 20),
+          const Gap(10),
+          Expanded(
+            child: CustomText(
+              text: 'تم استئناف الدرس — أكملت $_resumedFrom من $_resumedTotal سؤالاً',
+              color: AppColors.success700,
+              size: 13,
+              weight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Lets the student write a note about the question in front of them.
+  ///
+  /// Posted to /contact-support with the question attached, so it lands in the
+  /// inbox an admin already reads and replies to, and the reply comes back in
+  /// the student's own list of past messages. A separate feedback table would
+  /// have needed its own dashboard screen before a single note reached anyone.
+  Future<void> _openFeedbackSheet() async {
+    final controller = TextEditingController();
+    final questionId = _current.questionId;
+    var sending = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          // Lifts the field clear of the keyboard; without this the send button
+          // sits under it on a short screen.
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.flag_outlined, color: AppColors.brandPrimary, size: 22),
+                  const Gap(10),
+                  Expanded(
+                    child: CustomText(
+                      text: 'ملاحظة على هذا السؤال',
+                      color: AppColors.gray900,
+                      size: 16,
+                      weight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    icon: const Icon(Icons.close, color: AppColors.gray500),
+                  ),
+                ],
+              ),
+              const Gap(4),
+              CustomText(
+                text: 'اكتب استفسارك أو أبلغ عن خطأ في السؤال أو إجابته، وسيصلك الرد في صفحة تواصل معنا.',
+                color: AppColors.gray600,
+                size: 12,
+              ),
+              const Gap(14),
+              TextField(
+                controller: controller,
+                maxLines: 5,
+                minLines: 3,
+                // Matches the server's max:2000 so the student is stopped by the
+                // field rather than by a rejected request.
+                maxLength: 2000,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  hintText: 'مثال: الإجابة المسجلة لهذا السؤال غير صحيحة.',
+                  filled: true,
+                  fillColor: AppColors.gray50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.gray200),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.gray200),
+                  ),
+                ),
+              ),
+              const Gap(4),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: sending
+                      ? null
+                      : () async {
+                          final text = controller.text.trim();
+                          if (text.isEmpty) return;
+
+                          setSheetState(() => sending = true);
+                          try {
+                            await ContactRepo().sendQuestionFeedback(
+                              questionId: questionId,
+                              message: text,
+                            );
+                            if (!sheetContext.mounted) return;
+                            Navigator.pop(sheetContext);
+                            if (mounted) {
+                              _snack('تم إرسال ملاحظتك، شكرًا لك', success: true);
+                            }
+                          } catch (e) {
+                            if (!sheetContext.mounted) return;
+                            setSheetState(() => sending = false);
+                            // Reported inside the sheet, not behind it: the
+                            // student still has their text and can retry.
+                            ScaffoldMessenger.of(sheetContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e is ApiError ? e.message : 'تعذّر إرسال الملاحظة',
+                                ),
+                                backgroundColor: AppColors.error600,
+                              ),
+                            );
+                          }
+                        },
+                  icon: sending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send, size: 18),
+                  label: Text(sending ? 'جارٍ الإرسال...' : 'إرسال'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    controller.dispose();
   }
 
   /// "3 ↻ | 10 | 1 ✓" — review queue, remaining in this pass, done so far.
@@ -896,6 +1109,42 @@ class _LessonFlowViewState extends State<LessonFlowView>
             ),
             const Gap(16),
           ],
+          if (_nextLesson == null && _nextNeedsSubscription)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.brandPrimary.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.workspace_premium, color: AppColors.warning700),
+                  const Gap(10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomText(
+                          text: 'انتهى الحد المجاني من هذه المادة',
+                          color: AppColors.gray900,
+                          size: 14,
+                          weight: FontWeight.bold,
+                        ),
+                        const Gap(4),
+                        CustomText(
+                          text: 'اشترك لمتابعة باقي دروس المادة',
+                          color: AppColors.gray700,
+                          size: 13,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (_nextLesson != null)
             Container(
               padding: const EdgeInsets.all(16),

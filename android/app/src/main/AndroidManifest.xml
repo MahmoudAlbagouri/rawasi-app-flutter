@@ -47,10 +47,26 @@
             android:value="2" />
     </application>
 
+    <!--
+        Android 11 (API 30) hides other apps unless they are declared here.
+        Without these two, url_launcher cannot resolve a tel: or https: target
+        and the dialer and WhatsApp buttons silently do nothing on a modern
+        device - the most common way this feature ships broken.
+    -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- WhatsApp, and any other https link. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <!-- The dialer. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>

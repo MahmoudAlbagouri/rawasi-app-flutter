@@ -313,12 +313,29 @@ class _SubjectsViewState extends State<SubjectsView> {
                           ),
                           const Gap(4),
                           CustomText(
-                            text: hasQuestions
-                                ? '$count سؤال محفوظ'
-                                : 'لا توجد أسئلة محفوظة',
-                            color: AppColors.gray600,
+                            // With a cap known, the count is shown AGAINST it,
+                            // so running out is visible long before it bites.
+                            text: !hasQuestions
+                                ? 'لا توجد أسئلة محفوظة'
+                                : subject.maxSavedQuestions == null
+                                    ? '$count سؤال محفوظ'
+                                    : '$count من ${subject.maxSavedQuestions} سؤال محفوظ',
+                            color: subject.isFull
+                                ? AppColors.warning700
+                                : AppColors.gray600,
                             size: 12,
                           ),
+                          if (subject.isFull) ...[
+                            const Gap(4),
+                            CustomText(
+                              // The same instruction the server gives when it
+                              // refuses the next save, so the two agree.
+                              text: 'المكتبة ممتلئة — احذف أسئلة لإضافة غيرها',
+                              color: AppColors.warning700,
+                              size: 11,
+                              weight: FontWeight.w600,
+                            ),
+                          ],
                         ],
                       ),
                     ),

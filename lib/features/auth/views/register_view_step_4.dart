@@ -55,6 +55,14 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
   ];
   String? selectedBranchLabel;
 
+  /// أولى ثانوي follows Al-Azhar's البكالوريا system, which has no علمي/أدبي
+  /// split — so the stream picker is hidden entirely for grade 1 and the
+  /// backend stores null for them.
+  ///
+  /// Read from the draft each build rather than cached, so going BACK to
+  /// change the year makes the field appear or disappear immediately.
+  bool get _needsStream => widget.draft.data.academicYear != '1';
+
   // free first month: the student-facing picker is limited to these two. The
   // backend's Madhab enum still holds Maliki and Hanbali for existing data, but
   // CompleteProfileRequest only accepts what is offered here.
@@ -113,7 +121,11 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
           birthDate: selectedBirthDate == null
               ? ''
               : selectedBirthDate!.toIso8601String().split('T')[0],
-          schoolBranch: _valueFor(branches, selectedBranchLabel),
+          // Grade 1 sends nothing, even if a stream was picked before the
+          // student went back and changed their year. AuthRepo omits a null
+          // school_branch from the payload entirely.
+          schoolBranch:
+              _needsStream ? _valueFor(branches, selectedBranchLabel) : null,
           madhab: _valueFor(madhabs, selectedMadhabLabel) ?? '',
         ));
   }
@@ -147,7 +159,7 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
         _birthDateError != null ||
         selectedGenderLabel == null ||
         selectedMadhabLabel == null ||
-        selectedBranchLabel == null) {
+        (_needsStream && selectedBranchLabel == null)) {
       return;
     }
 
@@ -264,10 +276,10 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
                               required: true,
                             ),
                           ),
+                          if (_needsStream) ...[
                           const Gap(16),
                           BuildField(
-                            // Required now: it decides whether the student is
-                            // shown the علمي or the أدبي stream.
+                            // Grades 2 and 3 only — see [_needsStream].
                             title: 'الشعبة',
                             child: CustomDropdown<String>(
                               hint: 'اختر الشعبة',
@@ -279,6 +291,7 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
                               required: true,
                             ),
                           ),
+                          ],
                           const Gap(24),
                           CustomElevatedButton(
                             text: 'المتابعة',

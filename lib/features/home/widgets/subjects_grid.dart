@@ -22,83 +22,12 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
-import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
+import 'package:rawasi_app_n/features/courses/data/subject_group.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
 
-/// One subject, with whichever of its courses the student should open next.
-class SubjectTile {
-  final String name;
-  final IconData icon;
-
-  /// The course to open on tap: the first one still incomplete, else the
-  /// first. With two terms visible, that lands the student on the term they
-  /// are actually working through rather than always on term 1.
-  final Course target;
-
-  /// Curriculum figures for the whole subject, when analytics is available.
-  final SubjectProgress? progress;
-
-  const SubjectTile({
-    required this.name,
-    required this.icon,
-    required this.target,
-    this.progress,
-  });
-
-  double get fraction => ((progress?.percentage ?? 0) / 100).clamp(0.0, 1.0);
-
-  /// "٥ من ٣٩" in Western digits, or null when there is nothing to show.
-  String? get countLabel {
-    final p = progress;
-    if (p == null) return null;
-    return '${p.completedLessons} من ${p.totalLessons}';
-  }
-}
-
-/// Groups courses into one tile per subject and attaches the matching
-/// analytics figures.
-List<SubjectTile> buildSubjectTiles(
-  List<Course> courses,
-  List<SubjectProgress> subjects,
-) {
-  final byName = <String, List<Course>>{};
-  for (final c in courses) {
-    byName.putIfAbsent(c.name.trim(), () => []).add(c);
-  }
-
-  final tiles = <SubjectTile>[];
-  byName.forEach((name, group) {
-    // Stable ordering, so "first incomplete" means the earliest term.
-    group.sort((a, b) => (a.term ?? '').compareTo(b.term ?? ''));
-
-    final target = group.firstWhere(
-      (c) => (c.progress?.percentage ?? 0) < 100,
-      orElse: () => group.first,
-    );
-
-    SubjectProgress? match;
-    for (final s in subjects) {
-      if (s.label.trim() == name) {
-        match = s;
-        break;
-      }
-    }
-
-    tiles.add(SubjectTile(
-      name: name,
-      icon: group.first.icon,
-      target: target,
-      progress: match,
-    ));
-  });
-
-  tiles.sort((a, b) => a.name.compareTo(b.name));
-  return tiles;
-}
-
 class SubjectsGrid extends StatelessWidget {
-  final List<SubjectTile> tiles;
+  final List<SubjectGroup> tiles;
   final void Function(Course course) onOpen;
 
   const SubjectsGrid({super.key, required this.tiles, required this.onOpen});
@@ -131,7 +60,7 @@ class SubjectsGrid extends StatelessWidget {
 }
 
 class _SubjectCard extends StatelessWidget {
-  final SubjectTile tile;
+  final SubjectGroup tile;
   final void Function(Course course) onOpen;
 
   const _SubjectCard({required this.tile, required this.onOpen});

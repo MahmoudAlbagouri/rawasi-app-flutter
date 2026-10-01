@@ -91,14 +91,67 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                 ),
               );
             }
+            // The free-plan allowance, if this student has one. Every lesson
+            // carries the same figure, so the first is as good as any.
+            final freeLimit = lessons.first.freeLimitLessons;
+            final capped = freeLimit != null && lessons.length > freeLimit;
+
             return ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: lessons.length,
+              // One extra leading row for the allowance notice.
+              itemCount: lessons.length + (capped ? 1 : 0),
               separatorBuilder: (context, index) => const Gap(12),
-              itemBuilder: (context, index) => _lessonCard(lessons[index]),
+              itemBuilder: (context, index) {
+                if (capped && index == 0) {
+                  return _freeAllowanceNotice(freeLimit, lessons.length);
+                }
+
+                return _lessonCard(lessons[index - (capped ? 1 : 0)]);
+              },
             );
           },
         ),
+      ),
+    );
+  }
+
+  /// How much of this subject the free plan covers.
+  ///
+  /// Stated once, at the top, as a plain count rather than a percentage: the
+  /// student can count the open lessons in the list below and see that the
+  /// number is true. A percentage would be a claim they cannot check.
+  Widget _freeAllowanceNotice(int freeLimit, int total) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.brandPrimary.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.card_giftcard, color: AppColors.brandPrimary, size: 24),
+          const Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomText(
+                  text: 'متاح لك مجانًا: $freeLimit من $total درسًا',
+                  color: AppColors.gray900,
+                  size: 14,
+                  weight: FontWeight.w600,
+                ),
+                const Gap(4),
+                CustomText(
+                  text: 'اشترك لمتابعة باقي دروس المادة',
+                  color: AppColors.gray600,
+                  size: 12,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -107,12 +160,14 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
     final Color color = switch (lesson.status) {
       'completed' => AppColors.success600,
       'unlocked' => AppColors.brandPrimary,
-      _ => AppColors.gray500,
+      // A paywalled lesson is not a failure state, so it does not take the
+      // muted grey of a lesson the student has not earned yet.
+      _ => lesson.requiresPayment ? AppColors.warning700 : AppColors.gray500,
     };
     final IconData icon = switch (lesson.status) {
       'completed' => Icons.check_circle,
       'unlocked' => Icons.play_circle_fill,
-      _ => Icons.lock,
+      _ => lesson.requiresPayment ? Icons.workspace_premium : Icons.lock,
     };
 
     return GestureDetector(
@@ -198,7 +253,18 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                         ],
                       ),
                     ],
-                  ] else if (lesson.autoUnlockDeadline != null)
+                    ] else if (lesson.requiresPayment)
+                    // The one lock the student can do something about today.
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: CustomText(
+                        text: 'اشترك لمتابعة باقي الدروس',
+                        color: AppColors.warning700,
+                        size: 12,
+                        weight: FontWeight.w600,
+                      ),
+                    )
+                  else if (lesson.autoUnlockDeadline != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: CustomText(

@@ -11,7 +11,9 @@ import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
+import 'package:rawasi_app_n/features/courses/data/subject_group.dart';
 import 'package:rawasi_app_n/features/courses/views/course_lessons_view.dart';
+import 'package:rawasi_app_n/features/home/data/home_data.dart';
 import 'package:rawasi_app_n/root.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
@@ -29,11 +31,33 @@ class _CoursesViewState extends State<CoursesView> {
   late Future<bool> _isSignedInFuture;
   late Future<Student?> _profileFuture;
 
+  /// Held in state, not built inline.
+  ///
+  /// This used to be `future: CoursesRepo().fetchCourses()` inside build, which
+  /// has both halves of a bug: a brand-new Future on every rebuild, and no way
+  /// for anything to ask for a reload. Finishing lessons and coming back left
+  /// the old percentages on screen until the tab was rebuilt from scratch,
+  /// because returning from a push rebuilds nothing by itself.
+  late Future<List<Course>> _coursesFuture;
+
   @override
   void initState() {
     super.initState();
     _isSignedInFuture = isUserSignedIn();
     _profileFuture = _loadProfile();
+    _coursesFuture = CoursesRepo().fetchCourses();
+  }
+
+  /// Re-reads progress from the server.
+  ///
+  /// Also drops the home cache, because the same figures appear in the subjects
+  /// grid there — refreshing one and not the other is how the two screens end
+  /// up disagreeing about the same subject.
+  Future<void> _reloadCourses() async {
+    HomeRepo.invalidate();
+    final next = CoursesRepo().fetchCourses();
+    setState(() => _coursesFuture = next);
+    await next.catchError((_) => <Course>[]);
   }
 
   Future<Student?> _loadProfile() async {
@@ -100,7 +124,7 @@ class _CoursesViewState extends State<CoursesView> {
 
   Widget _buildCoursesList() {
     return FutureBuilder<List<Course>>(
-      future: CoursesRepo().fetchCourses(),
+      future: _coursesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -124,31 +148,46 @@ class _CoursesViewState extends State<CoursesView> {
             ),
           );
         }
-        return ListView.separated(
-          itemCount: courses.length,
-          separatorBuilder: (context, index) => const Gap(16),
-          itemBuilder: (context, index) => _courseCard(courses[index]),
+
+        // Grades 1-2 are returned both terms of every subject, so the raw
+        // list shows each subject twice. Collapse to one card per subject —
+        // the same grouping the home grid uses.
+        final subjects = groupCoursesBySubject(courses);
+
+        // Pull-to-refresh as well as the automatic reload: the automatic one
+        // covers lessons finished through this screen, this covers progress
+        // made anywhere else.
+        return RefreshIndicator(
+          onRefresh: _reloadCourses,
+          child: ListView.separated(
+            itemCount: subjects.length,
+            separatorBuilder: (context, index) => const Gap(16),
+            itemBuilder: (context, index) => _subjectCard(subjects[index]),
+          ),
         );
       },
     );
   }
 
-  Widget _courseCard(Course course) {
-    final progress = course.progress;
+  Widget _subjectCard(SubjectGroup subject) {
+    final course = subject.target;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) =>
                 CourseLessonsView(
                   courseId: course.id,
-                  courseName: course.name,
+                  courseName: subject.name,
                   progress: course.progress,
                 ),
           ),
         );
+        // Lessons were very likely completed in there, so the percentages on
+        // this screen are stale the moment we come back.
+        if (mounted) await _reloadCourses();
       },
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
@@ -168,26 +207,26 @@ class _CoursesViewState extends State<CoursesView> {
           children: [
             Row(
               children: [
-                BrandIconBadge(icon: course.icon),
+                BrandIconBadge(icon: subject.icon),
                 const Gap(16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       CustomText(
-                        text: course.name,
+                        text: subject.name,
                         color: AppColors.gray900,
                         size: 17,
                         weight: FontWeight.w600,
                       ),
-                      if (progress != null) ...[
+                      if (subject.hasProgress) ...[
                         const Gap(6),
                         Row(
                           children: [
                             Icon(Icons.menu_book_outlined, size: 15, color: AppColors.gray500),
                             const Gap(4),
                             CustomText(
-                              text: '${progress.totalLessons} درس',
+                              text: '${subject.totalLessons} درس',
                               color: AppColors.gray600,
                               size: 12,
                             ),
@@ -195,7 +234,7 @@ class _CoursesViewState extends State<CoursesView> {
                             Icon(Icons.check_circle_outline, size: 15, color: AppColors.gray500),
                             const Gap(4),
                             CustomText(
-                              text: 'أكملت ${progress.completedLessons}',
+                              text: 'أكملت ${subject.completedLessons}',
                               color: AppColors.gray600,
                               size: 12,
                             ),
@@ -208,7 +247,7 @@ class _CoursesViewState extends State<CoursesView> {
                 Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.gray400),
               ],
             ),
-            if (progress != null) ...[
+            if (subject.hasProgress) ...[
               const Gap(14),
               Row(
                 children: [
@@ -220,7 +259,7 @@ class _CoursesViewState extends State<CoursesView> {
                   ),
                   const Spacer(),
                   CustomText(
-                    text: '${_trimPercent(progress.percentage)}%',
+                    text: '${_trimPercent(subject.percentage)}%',
                     color: AppColors.gray900,
                     size: 13,
                     weight: FontWeight.bold,
@@ -231,10 +270,10 @@ class _CoursesViewState extends State<CoursesView> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(
-                  value: progress.fraction,
+                  value: subject.fraction,
                   minHeight: 7,
                   backgroundColor: AppColors.gray200,
-                  color: progress.fraction >= 1
+                  color: subject.fraction >= 1
                       ? AppColors.success600
                       : AppColors.brandPrimary,
                 ),

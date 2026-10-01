@@ -22,6 +22,7 @@ import 'package:rawasi_app_n/features/auth/data/registration_draft.dart';
 import 'package:rawasi_app_n/features/auth/views/login_view.dart';
 import 'package:rawasi_app_n/features/auth/views/register_view_step_4.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
+import 'package:rawasi_app_n/features/courses/data/subject_group.dart';
 import 'package:rawasi_app_n/features/courses/views/course_lessons_view.dart';
 import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/home/data/home_data.dart';
@@ -55,6 +56,22 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late Future<HomeData> _dataFuture;
 
+  /// The last load that produced something, kept across future swaps.
+  ///
+  /// A FutureBuilder resets to `ConnectionState.waiting` with a null snapshot
+  /// whenever its future is replaced, so without this every pull-to-refresh
+  /// threw away the screen it was refreshing and fell back to the guest
+  /// placeholder for as long as the four requests took.
+  HomeData? _last = HomeRepo.lastLoaded;
+
+  /// Whether a token exists, resolved before any request returns.
+  ///
+  /// null means "not known yet", which is exactly the window the guest flash
+  /// lived in: for about a second after login, home had a null profile and read
+  /// it as "this is a guest". One secure-storage read answers it long before
+  /// the network does.
+  bool? _hasSession;
+
   /// Per-session dismissal of the intro card. Deliberately not persisted and
   /// deliberately not a dialog: it must never block the UI on first launch.
   bool _introDismissed = false;
@@ -66,12 +83,26 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     _dataFuture = HomeRepo().load();
+    _resolveSession();
+  }
+
+  Future<void> _resolveSession() async {
+    final signedIn = await HomeRepo.hasSession();
+    if (mounted) setState(() => _hasSession = signedIn);
   }
 
   void _refresh({bool force = true}) {
     if (force) HomeRepo.invalidate();
+    // Re-read the token too: the student may have signed out, or in, inside
+    // whatever screen we are coming back from.
+    _resolveSession();
     setState(() => _dataFuture = HomeRepo().load(force: force));
   }
+
+  /// What to render when the future has not produced anything yet. The rule,
+  /// and why it is the fix for the guest flash, is on HomeData.placeholder.
+  HomeData _placeholder() =>
+      HomeData.placeholder(last: _last, hasSession: _hasSession);
 
   // ---------------------------------------------------------------------------
   // Navigation
@@ -129,9 +160,16 @@ class _HomeViewState extends State<HomeView> {
           child: FutureBuilder<HomeData>(
             future: _dataFuture,
             builder: (context, snapshot) {
+              final resolved = snapshot.data;
+              if (resolved != null) _last = resolved;
+
+              final data = resolved ?? _placeholder();
+
+              // Still waiting on the network, OR waiting on the token read that
+              // decides whether this is a guest at all.
               final loading =
-                  snapshot.connectionState == ConnectionState.waiting;
-              final data = snapshot.data ?? HomeData.signedOut();
+                  snapshot.connectionState == ConnectionState.waiting ||
+                      data.isLoading;
 
               return RefreshIndicator(
                 onRefresh: () async {
@@ -157,8 +195,14 @@ class _HomeViewState extends State<HomeView> {
     final profile = data.profile;
     final name = profile?.fullName.trim();
 
+    // "ضيف" is a statement about who the student is, so it may only be made
+    // once we know. While loading, greet without naming anyone.
+    final greetingName = data.isLoading
+        ? null
+        : ((name == null || name.isEmpty) ? 'ضيف' : name);
+
     return [
-      _Greeting(name: (name == null || name.isEmpty) ? 'ضيف' : name),
+      _Greeting(name: greetingName),
       const Gap(18),
 
       // 1. Momentum first.
@@ -170,7 +214,10 @@ class _HomeViewState extends State<HomeView> {
       const Gap(22),
 
       // Signed out: both ways in, same pair as every other pre-auth surface.
-      if (!data.isSignedIn) ...[
+      // `isLoading` is what keeps this off screen while the token is being
+      // read — offering "ابدأ رحلتك" to a student who just logged in was the
+      // most visible half of the guest flash.
+      if (!data.isSignedIn && !data.isLoading) ...[
         _animated(
           240,
           HomeCard(
@@ -321,7 +368,9 @@ class _HomeViewState extends State<HomeView> {
     // explains why, so an empty subjects block would just repeat it.
     if (courses == null || courses.isEmpty) return const [];
 
-    final tiles = buildSubjectTiles(courses, data.stats?.subjects ?? const []);
+    // Same grouping the courses screen uses, so the two agree — and it needs
+    // only /courses, so the grid still shows figures when analytics fails.
+    final tiles = groupCoursesBySubject(courses);
 
     return [
       HomeSectionTitle(
@@ -392,17 +441,23 @@ class _HomeViewState extends State<HomeView> {
 // -----------------------------------------------------------------------------
 
 class _Greeting extends StatelessWidget {
-  final String name;
+  /// null while the student's identity is still unknown.
+  final String? name;
 
   const _Greeting({required this.name});
 
   @override
   Widget build(BuildContext context) {
+    final label = name;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CustomText(
-          text: 'مرحباً بك، $name',
+          // Greeting nobody by name is the honest version of "we do not know
+          // yet" — and it keeps the line's height stable, so the rest of the
+          // screen does not jump when the name lands.
+          text: label == null ? 'مرحباً بك' : 'مرحباً بك، $label',
           color: AppColors.brandSecondary,
           size: 16,
           weight: FontWeight.bold,

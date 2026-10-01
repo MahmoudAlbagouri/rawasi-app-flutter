@@ -65,6 +65,18 @@ String arabicLessons(int count) => arabicCount(
       dropNumberForOneAndTwo: false,
     );
 
+/// "أسبوع" / "أسبوعين" / "3 أسابيع" / "15 أسبوعًا"
+///
+/// The dual is the genitive "أسبوعين", not the nominative "أسبوعان": every use
+/// of this is after a preposition — "في أسبوعين".
+String arabicWeeks(int count) => arabicCount(
+      count,
+      singular: 'أسبوع',
+      dual: 'أسبوعين',
+      plural: 'أسابيع',
+      accusativeSingular: 'أسبوعًا',
+    );
+
 const List<String> _arabicMonths = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',

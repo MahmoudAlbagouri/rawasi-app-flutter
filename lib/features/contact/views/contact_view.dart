@@ -235,6 +235,7 @@ import 'package:rawasi_app_n/features/contact/data/contact_message.dart';
 import 'package:rawasi_app_n/features/contact/widgets/message_card.dart';
 import 'package:rawasi_app_n/features/contact/widgets/send_message_form.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactView extends StatefulWidget {
   const ContactView({super.key});
@@ -319,8 +320,53 @@ class _ContactViewState extends State<ContactView>
     }
   }
 
+  /// Support number, in the two forms the two channels need.
+  ///
+  /// WhatsApp addresses are international with no leading zero and no "+", so
+  /// the local 010... becomes 2010.... Getting this wrong does not error — it
+  /// opens WhatsApp on a number that does not exist — which is why the two are
+  /// written out here rather than built by string surgery at the call site.
+  static const String _supportPhone = '01027252071';
+  static const String _supportWhatsapp = '201027252071';
+
+  /// Opens [uri], reporting failure to the student rather than silently doing
+  /// nothing.
+  ///
+  /// No canLaunchUrl() check first: on Android 11+ it answers from the manifest
+  /// <queries> list and returns false for perfectly launchable targets, which
+  /// would disable a button that actually works. Attempting the launch and
+  /// handling the throw is the honest test.
+  Future<void> _open(Uri uri, String failureMessage) async {
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) throw Exception('not launched');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(failureMessage),
+          backgroundColor: AppColors.error500,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _call() => _open(
+        Uri(scheme: 'tel', path: _supportPhone),
+        'لا يمكن إجراء الاتصال من هذا الجهاز',
+      );
+
+  Future<void> _openWhatsapp() => _open(
+        Uri.parse('https://wa.me/$_supportWhatsapp'),
+        'تأكد من تثبيت واتساب على جهازك',
+      );
+
   void _showPhoneNumberDialog() {
-    const phoneNumber = '01027252071';
+    const phoneNumber = _supportPhone;
 
     showDialog(
       context: context,
@@ -344,10 +390,19 @@ class _ContactViewState extends State<ContactView>
               ),
               const Gap(16),
 
-              // ✅ الرقم - قابل للنقر للنسخ
+              // The number dials on tap and copies on long-press.
+              //
+              // It used to only copy, which is the one thing a student who
+              // tapped a phone number was not asking for. Copying is kept
+              // because it is still useful for a landline or another device,
+              // just no longer the primary action — and it is spelled out
+              // underneath so it is discoverable rather than a secret.
               GestureDetector(
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: phoneNumber));
+                onTap: _call,
+                onLongPress: () async {
+                  await Clipboard.setData(
+                    const ClipboardData(text: phoneNumber),
+                  );
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -389,7 +444,44 @@ class _ContactViewState extends State<ContactView>
                   ),
                 ),
               ),
-              const Gap(24),
+              const Gap(6),
+              Text(
+                'اضغط للاتصال · اضغط مطولاً للنسخ',
+                style: TextStyle(fontSize: 11, color: AppColors.gray500),
+                textAlign: TextAlign.center,
+              ),
+              const Gap(16),
+
+              // WhatsApp, under the call details as its own route in.
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Closed first: coming back from WhatsApp to a dialog still
+                    // sitting open over the screen is disorienting.
+                    Navigator.pop(context);
+                    _openWhatsapp();
+                  },
+                  icon: const Icon(Icons.chat, size: 20),
+                  label: const Text('تواصل على واتساب'),
+                  style: ElevatedButton.styleFrom(
+                    // WhatsApp green, so the button is recognised before it is
+                    // read — this is the one place in the app that borrows
+                    // another product's colour, and deliberately.
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const Gap(10),
 
               // زر الإغلاق فقط
               SizedBox(
@@ -450,7 +542,7 @@ class _ContactViewState extends State<ContactView>
                     end: Offset.zero,
                   ).animate(_titleAnimation),
                   child: CustomText(
-                    text: 'تواصل مع الرواسي الآن',
+                    text: 'تواصل مع رواسي الآن',
                     color: AppColors.brandPrimary,
                     size: 24,
                     weight: FontWeight.bold,

@@ -216,9 +216,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('أنت في المركز 3'), findsOneWidget);
+      // Reference layout: "ترتيبك" label, the rank as the headline figure,
+      // points alongside it.
+      expect(find.text('ترتيبك'), findsOneWidget);
+      expect(find.text('#3'), findsOneWidget);
       expect(find.text('21 نقطة'), findsOneWidget);
       expect(find.textContaining('ضمن أول عشرة'), findsOneWidget);
+      // Trophy for a student inside the top ten.
+      expect(find.byIcon(Icons.emoji_events), findsOneWidget);
     });
 
     testWidgets('shows for a student outside the top ten', (tester) async {
@@ -227,8 +232,11 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('أنت في المركز 42'), findsOneWidget);
+      expect(find.text('ترتيبك'), findsOneWidget);
+      expect(find.text('#42'), findsOneWidget);
       expect(find.text('5 نقاط'), findsOneWidget);
+      // No trophy outside the top ten.
+      expect(find.byIcon(Icons.emoji_events), findsNothing);
     });
 
     testWidgets('a zero-progress student gets an invitation, not a zero',
@@ -239,7 +247,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('ابدأ بحل الأسئلة لدخول الترتيب'), findsOneWidget);
-      expect(find.textContaining('المركز'), findsNothing);
+      expect(find.textContaining('#'), findsNothing);
       expect(find.text('0 نقاط'), findsNothing);
     });
   });

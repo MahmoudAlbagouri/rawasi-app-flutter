@@ -304,79 +304,86 @@ class _StatisticsViewState extends State<StatisticsView> {
   // ---------------------------------------------------------------------------
 
   Widget _row(StudentStats stats) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: _card(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-            child: Column(
-              children: [
-                Icon(Icons.local_fire_department,
-                    color: AppColors.warning500, size: 30),
-                const Gap(8),
-                CustomText(
-                  text: 'الأيام المتتالية',
-                  color: AppColors.gray600,
-                  size: 13,
-                  weight: FontWeight.w600,
-                ),
-                const Gap(8),
-                CustomText(
-                  text: '${stats.streak.current}',
-                  color: AppColors.gray900,
-                  size: 26,
-                  weight: FontWeight.bold,
-                ),
-                CustomText(
-                  text: 'يوم حالياً',
-                  color: AppColors.gray600,
-                  size: 12,
-                ),
-                const Gap(6),
-                CustomText(
-                  text: 'الأطول: ${stats.streak.longest} يوم',
-                  color: AppColors.success700,
-                  size: 12,
-                  weight: FontWeight.w600,
-                ),
-              ],
+    // This Row sits directly inside the ListView, which offers unbounded
+    // height. `stretch` alone therefore asked each tile to be infinitely
+    // tall ("BoxConstraints forces an infinite height"), and that failed
+    // layout took down every card after this one. IntrinsicHeight bounds
+    // the Row to its tallest tile; stretch then makes the two tiles match.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _card(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+              child: Column(
+                children: [
+                  Icon(Icons.local_fire_department,
+                      color: AppColors.warning500, size: 30),
+                  const Gap(8),
+                  CustomText(
+                    text: 'الأيام المتتالية',
+                    color: AppColors.gray600,
+                    size: 13,
+                    weight: FontWeight.w600,
+                  ),
+                  const Gap(8),
+                  CustomText(
+                    text: '${stats.streak.current}',
+                    color: AppColors.gray900,
+                    size: 26,
+                    weight: FontWeight.bold,
+                  ),
+                  CustomText(
+                    text: 'يوم حالياً',
+                    color: AppColors.gray600,
+                    size: 12,
+                  ),
+                  const Gap(6),
+                  CustomText(
+                    text: 'الأطول: ${stats.streak.longest} يوم',
+                    color: AppColors.success700,
+                    size: 12,
+                    weight: FontWeight.w600,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const Gap(12),
-        Expanded(
-          child: _card(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-            child: Column(
-              children: [
-                Icon(Icons.timer_outlined, color: AppColors.brandPrimary, size: 30),
-                const Gap(8),
-                CustomText(
-                  text: 'مدة مذاكرتك',
-                  color: AppColors.gray600,
-                  size: 13,
-                  weight: FontWeight.w600,
-                ),
-                const Gap(8),
-                CustomText(
-                  text: stats.timeSpent.label,
-                  color: AppColors.gray900,
-                  size: 17,
-                  weight: FontWeight.bold,
-                  align: TextAlign.center,
-                ),
-                const Gap(6),
-                CustomText(
-                  text: '${stats.timeSpent.minutes} دقيقة إجمالاً',
-                  color: AppColors.gray600,
-                  size: 12,
-                ),
-              ],
+          const Gap(12),
+          Expanded(
+            child: _card(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+              child: Column(
+                children: [
+                  Icon(Icons.timer_outlined, color: AppColors.brandPrimary, size: 30),
+                  const Gap(8),
+                  CustomText(
+                    text: 'مدة مذاكرتك',
+                    color: AppColors.gray600,
+                    size: 13,
+                    weight: FontWeight.w600,
+                  ),
+                  const Gap(8),
+                  CustomText(
+                    text: stats.timeSpent.label,
+                    color: AppColors.gray900,
+                    size: 17,
+                    weight: FontWeight.bold,
+                    align: TextAlign.center,
+                  ),
+                  const Gap(6),
+                  CustomText(
+                    text: '${stats.timeSpent.minutes} دقيقة إجمالاً',
+                    color: AppColors.gray600,
+                    size: 12,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -388,7 +395,7 @@ class _StatisticsViewState extends State<StatisticsView> {
     // A student who has completed nothing has no pace to report. Printing
     // "بمعدل 0 درس في الأسبوع" next to a blank projection reads like a broken
     // card rather than an empty one.
-    if (p.lessonsPerWeek <= 0) {
+    if (!p.hasStarted || p.completedLessons <= 0) {
       return _card(
         child: Row(
           children: [
@@ -426,13 +433,6 @@ class _StatisticsViewState extends State<StatisticsView> {
 
     final projected = arabicDate(p.estimatedCompletionDate);
 
-    // Everything finished in the first day or two makes the weekly rate
-    // mathematically true but useless — one day is a seventh of a week, so a
-    // single lesson reads as "7 دروس في الأسبوع". The backend keeps the raw
-    // figure on purpose; the honest thing here is to caption it rather than
-    // quietly rewrite the number or project a finish date off it.
-    final isEarly = p.lessonsPerWeek > p.completedLessons && p.completedLessons > 0;
-
     return _card(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,15 +443,28 @@ class _StatisticsViewState extends State<StatisticsView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CustomText(
-                  text: 'الدروس المكتملة أسبوعياً',
-                  color: AppColors.gray900,
-                  size: 15,
-                  weight: FontWeight.bold,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: CustomText(
+                        text: 'الدروس المكتملة أسبوعياً',
+                        color: AppColors.gray900,
+                        size: 15,
+                        weight: FontWeight.bold,
+                      ),
+                    ),
+                    const Gap(8),
+                    _ratioChip(p),
+                  ],
                 ),
                 const Gap(6),
                 CustomText(
-                  text: 'بمعدل ${_trim(p.lessonsPerWeek)} ${arabicLessonWord(p.lessonsPerWeek)} في الأسبوع',
+                  // The ratio above and this average are the same division, so
+                  // they can never contradict each other.
+                  text:
+                      '${arabicLessons(p.completedLessons)} في ${arabicWeeks(p.weeksElapsed)}'
+                      ' — بمعدل ${_trim(p.lessonsPerWeek)} ${arabicLessonWord(p.lessonsPerWeek)} في الأسبوع',
                   color: AppColors.gray700,
                   size: 13,
                 ),
@@ -461,14 +474,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                   color: AppColors.gray600,
                   size: 13,
                 ),
-                if (isEarly) ...[
-                  const Gap(6),
-                  CustomText(
-                    text: 'معدل مبدئي — سيستقر بعد أسبوع من المذاكرة',
-                    color: AppColors.warning700,
-                    size: 12,
-                  ),
-                ] else if (projected != null) ...[
+                if (projected != null) ...[
                   const Gap(6),
                   CustomText(
                     text: 'بهذا المعدل تنتهي في $projected',
@@ -481,6 +487,30 @@ class _StatisticsViewState extends State<StatisticsView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The "6 / 2" figure: lessons completed over weeks studying.
+  ///
+  /// Forced LTR. In an Arabic paragraph the bidi algorithm reads the slash and
+  /// the surrounding spaces as neutral and resolves them to the base direction,
+  /// which lays the two numbers out swapped — "6 / 2" displayed as "2 / 6".
+  Widget _ratioChip(Pacing p) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: CustomText(
+          text: p.ratioLabel,
+          color: AppColors.brandPrimary,
+          size: 17,
+          weight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -732,11 +762,18 @@ class _StatisticsViewState extends State<StatisticsView> {
             : null,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 30,
             height: 30,
-            decoration: BoxDecoration(color: medal, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              // Green for every place, as in the reference; first place is
+              // distinguished by the trophy below rather than by tint, so the
+              // numbers stay legible at small sizes.
+              color: AppColors.success600,
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
             child: Text(
               '${e.rank}',
@@ -757,23 +794,43 @@ class _StatisticsViewState extends State<StatisticsView> {
                   color: AppColors.gray900,
                   size: 14,
                   weight: e.isCurrentStudent ? FontWeight.bold : FontWeight.w500,
+                  // Names range from "Hamedo Mekky" to
+                  // "مروان أحمد إبراهيم الطناني". Wrapping at two lines keeps
+                  // the row height bounded without truncating most names.
+                  maxLines: 2,
                 ),
                 CustomText(
                   text: '${arabicLessons(e.completedLessons)} مكتمل',
                   color: AppColors.gray500,
                   size: 11,
+                  maxLines: 1,
                 ),
               ],
             ),
           ),
-          CustomText(
-            // Arabic counted noun: نقطة / نقطتان / نقاط, not نقطة for every
-            // number. `completed_lessons` above is a caption - points are the
-            // ranking key.
-            text: arabicPoints(e.points),
-            color: AppColors.brandPrimary,
-            size: 13,
-            weight: FontWeight.w600,
+          const Gap(8),
+
+          // Trophy on first place only. The medal colour already varies by
+          // rank; this reuses it rather than introducing a second scheme.
+          if (e.rank == 1) ...[
+            Icon(Icons.emoji_events, color: medal, size: 20),
+            const Gap(6),
+          ],
+
+          // Fixed width so the points column does not shift as names wrap.
+          SizedBox(
+            width: 62,
+            child: CustomText(
+              // Arabic counted noun: نقطة / نقطتان / نقاط, not نقطة for every
+              // number. `completed_lessons` above is a caption - points are the
+              // ranking key.
+              text: arabicPoints(e.points),
+              color: AppColors.brandPrimary,
+              size: 13,
+              weight: FontWeight.w600,
+              align: TextAlign.end,
+              maxLines: 1,
+            ),
           ),
         ],
       ),
