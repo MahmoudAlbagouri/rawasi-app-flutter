@@ -44,6 +44,12 @@ class ContactRepo {
   Future<ContactMessage> _send(Map<String, String> body) async {
     final result = await _api.post('/contact-support', body);
 
+    // ApiServices RETURNS an ApiError instead of throwing it, so a 422 arrives
+    // here as a value. Without this line the server's own message - "هذا السؤال
+    // غير متاح لك", the validation text - would be replaced by the generic
+    // fallback below, and the student would be told nothing useful.
+    if (result is ApiError) throw result;
+
     if (result is Map<String, dynamic> && result['success'] == true) {
       final data = result['data'];
       if (data is Map<String, dynamic>) return ContactMessage.fromJson(data);
@@ -69,6 +75,8 @@ class ContactRepo {
   /// This student's past messages, newest first, with any replies.
   Future<List<ContactMessage>> fetchMessages() async {
     final result = await _api.get('/my-contact-support');
+
+    if (result is ApiError) throw result;
 
     if (result is Map<String, dynamic> && result['success'] == true) {
       final list = result['data'] as List<dynamic>? ?? const [];
