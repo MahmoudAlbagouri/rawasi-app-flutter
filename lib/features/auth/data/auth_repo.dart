@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/network/api_exceptions.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
+import 'package:rawasi_app_n/features/notifications/push_service.dart';
 
 class AuthRepo {
   final ApiServices apiServices = ApiServices();
@@ -29,6 +32,13 @@ class AuthRepo {
       }
 
       await PrefHelper.saveToken(token);
+
+      // Both login and OTP sign-in come through here, so this is the one place
+      // a fresh session registers the device for push notifications. Not
+      // awaited: it asks for a permission and talks to Firebase, and sign-in
+      // must never wait on - or fail because of - either.
+      unawaited(PushService.instance.syncForSignedInStudent());
+
       return Student.fromJson(studentJson);
     }
 
@@ -170,6 +180,11 @@ class AuthRepo {
   // Logout
   // ---------------------------------------------------------------------------
   Future<void> logout() async {
+    // First, while the session is still valid: removing this device from the
+    // backend is an authenticated request. Never throws, and gives up after a
+    // few seconds, so it cannot block signing out.
+    await PushService.instance.signOut();
+
     try {
       final response = await apiServices.post('/logout', {});
       if (response is Map &&

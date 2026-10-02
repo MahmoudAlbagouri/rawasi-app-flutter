@@ -45,6 +45,13 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Push notifications go to the high-importance channel MainActivity
+             creates, so each one pops up as a banner. Without this, Firebase
+             uses Android's silent "Miscellaneous" channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="rawasi_notifications" />
     </application>
 
     <!--

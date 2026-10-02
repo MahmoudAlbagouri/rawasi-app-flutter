@@ -5,6 +5,10 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // Push notifications: consumes google-services.json (package com.rawasi.azhar,
+    // Firebase project rawasi-222fc). The build fails loudly if that file is
+    // missing or names a different package, which is the behaviour we want.
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -22,6 +26,9 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications (v10+), which shows push
+        // notifications as phone notifications while the app is open.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -74,4 +81,16 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Desugaring, for flutter_local_notifications (see compileOptions).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+    // flutter_local_notifications' README: enabling desugaring has been
+    // reported to crash Flutter apps on Android 12L and above, and adding the
+    // WindowManager library is the documented fix. Cheaper than finding out on
+    // a student's phone.
+    implementation("androidx.window:window:1.0.0")
+    implementation("androidx.window:window-java:1.0.0")
 }

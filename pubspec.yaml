@@ -57,6 +57,9 @@ dependencies:
   # font asset was added.
   pdf: ^3.11.1
   printing: ^5.13.4
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+  flutter_local_notifications: ^20.1.0
 
 dev_dependencies:
   flutter_test:

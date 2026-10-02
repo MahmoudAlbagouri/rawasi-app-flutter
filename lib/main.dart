@@ -1,11 +1,23 @@
 // lib/main.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:rawasi_app_n/features/notifications/push_service.dart';
 import 'package:rawasi_app_n/splash.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Push notifications. init() never throws, so a Firebase problem can never
+  // stop the app from starting.
+  await PushService.instance.init();
+
   runApp(const MyApp());
+
+  // Re-register this device if a student is already signed in. Deliberately
+  // not awaited: start-up must not wait on the network.
+  unawaited(PushService.instance.syncIfSignedIn());
 }
 
 class MyApp extends StatelessWidget {
@@ -14,6 +26,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // Lets a push notification open a dialog from anywhere in the app.
+      navigatorKey: PushService.navigatorKey,
       title: 'رواسي',
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
