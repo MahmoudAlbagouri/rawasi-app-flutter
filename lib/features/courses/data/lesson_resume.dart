@@ -33,6 +33,22 @@ class LessonResume {
 
   /// True when this sitting picked up part-finished work.
   bool get isResumed => alreadyDone > 0;
+
+  /// Where the question at [indexInSitting] sits IN THE LESSON, from one.
+  ///
+  /// The counters in the flow were all relative to the sitting, so a student
+  /// resuming a lesson with 2 of 18 done was shown "السؤال 1 من 16" — true of
+  /// the 16 left, and a flat contradiction of the "أكملت 2 من 18" line directly
+  /// above it. It read as "it started me at question 1 again", which is the one
+  /// thing the resume exists to prevent.
+  ///
+  /// [alreadyDone] is 0 for a fresh lesson and for a replay, so this is the
+  /// ordinary position in both of those cases with no special case.
+  int positionInLesson(int indexInSitting) => alreadyDone + indexInSitting + 1;
+
+  /// An empty sitting, before anything is loaded.
+  static const LessonResume empty =
+      LessonResume(questions: [], alreadyDone: 0, total: 0);
 }
 
 /// Picks up where the student left off.

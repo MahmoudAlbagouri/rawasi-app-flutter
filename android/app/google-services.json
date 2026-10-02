@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "909140115090",
+    "firebase_url": "https://rawasi-222fc-default-rtdb.firebaseio.com",
+    "project_id": "rawasi-222fc",
+    "storage_bucket": "rawasi-222fc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909140115090:android:f34720d885e80f4fb6304b",
+        "android_client_info": {
+          "package_name": "com.rawasi.azhar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBD7IZ-TwkubRCoWOfyF5lHuL11XY7Az2U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

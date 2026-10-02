@@ -118,6 +118,56 @@ void main() {
     });
   });
 
+  group('the number the student is shown', () {
+    // THE REPORTED BUG: resuming a lesson with 2 of 18 done showed
+    // "السؤال 1 من 16" directly under "أكملت 2 من 18 سؤالاً". The resume was
+    // working — those 2 were not re-asked — but the counter renumbered against
+    // the 16 remaining, so it read as "it started me at question 1 again".
+    test('continues the lesson numbering, it does not restart it', () {
+      final resume = resumeLesson(_lesson(total: 18, done: 2));
+
+      // First question of the sitting is question 3 OF THE LESSON.
+      expect(resume.positionInLesson(0), 3);
+      expect(resume.total, 18);
+      expect(resume.alreadyDone, 2);
+    });
+
+    test('runs to the lesson total, never past it', () {
+      final resume = resumeLesson(_lesson(total: 18, done: 2));
+
+      // Last question of the sitting is the 18th of the lesson.
+      expect(resume.positionInLesson(resume.questions.length - 1), 18);
+    });
+
+    test('a fresh lesson numbers from one, exactly as before', () {
+      final resume = resumeLesson(_lesson(total: 18, done: 0));
+
+      expect(resume.positionInLesson(0), 1);
+      expect(resume.total, 18);
+    });
+
+    test('a replay numbers from one too', () {
+      final resume = resumeLesson(_lesson(total: 18, done: 18));
+
+      expect(resume.positionInLesson(0), 1);
+      expect(resume.positionInLesson(17), 18);
+    });
+
+    test('the number and the resume notice always agree', () {
+      // The contradiction the student saw: the notice said 2 of 18 were done,
+      // the counter said this was question 1 of 16. Whatever the figures, the
+      // first question of a sitting must be the one after the last completed.
+      for (final done in [0, 1, 2, 5, 17]) {
+        final resume = resumeLesson(_lesson(total: 18, done: done));
+        expect(
+          resume.positionInLesson(0),
+          resume.alreadyDone + 1,
+          reason: 'with \$done already done',
+        );
+      }
+    });
+  });
+
   group('edge cases', () {
     test('an empty lesson stays empty rather than throwing', () {
       final resume = resumeLesson(const []);

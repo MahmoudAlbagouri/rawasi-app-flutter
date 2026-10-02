@@ -1,6 +1,7 @@
 // lib/features/library/data/library_repo.dart
 
 import 'package:dio/dio.dart'; // مطلوب لـ FormData
+import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/library/data/content_item.dart';
@@ -21,6 +22,17 @@ class LibraryRepo {
       'task_id': questionId.toString(),
       'type': 'question',
     });
+
+    // ApiServices RETURNS an ApiError rather than throwing it, and every refusal
+    // from this endpoint is a 422 — so Dio throws, the handler converts, and the
+    // result arrives here as an ApiError, not a Map.
+    //
+    // Without this branch every refusal fell through to the "unexpected
+    // response" line below, and the server's actual reason was thrown away:
+    // "هذه المهمة قد تمت اضافتها من قبل" and the per-subject full message both
+    // reached the student as "استجابة غير متوقعة من الخادم". The caller shows
+    // whatever this throws, so this is the only place the message survives.
+    if (result is ApiError) throw result;
 
     if (result is Map<String, dynamic>) {
       if (result['success'] == true) return;
@@ -93,6 +105,11 @@ class LibraryRepo {
         '/remove-from-library/$contentId',
         formData,
       );
+
+      // Same ApiError-as-a-value case as addToLibrary above. It matters here
+      // too: the full-library message tells the student to delete questions, so
+      // a failed delete has to say why rather than "unexpected response".
+      if (result is ApiError) throw result;
 
       // ✅ معالجة الرد من السيرفر بدقة
       if (result is Map<String, dynamic>) {

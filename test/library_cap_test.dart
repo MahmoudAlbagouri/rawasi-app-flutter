@@ -121,6 +121,38 @@ void main() {
       expect(m.question, isNull);
     });
 
+    test('question_id arrives as a STRING without crashing the parse', () {
+      // THE REPORTED BUG: the app posted question_id inside a JSON body as a
+      // string, Eloquent echoed the attribute straight back out as the string
+      // it came in as, and `json['question_id'] as int?` threw a TypeError —
+      // so a note that HAD been saved was reported as "تعذّر إرسال الملاحظة".
+      //
+      // The server casts it now, but an app in the wild talks to whatever
+      // backend is deployed, so the parser must survive either type.
+      final m = ContactMessage.fromJson({
+        'id': '9',
+        'message': 'ملاحظة',
+        'created_at': '2026-10-01T10:00:00+00:00',
+        'question_id': '4821',
+      });
+
+      expect(m.questionId, 4821);
+      expect(m.id, 9);
+      expect(m.isAboutQuestion, isTrue);
+    });
+
+    test('an unparseable id degrades to unknown rather than throwing', () {
+      final m = ContactMessage.fromJson({
+        'id': 9,
+        'message': 'ملاحظة',
+        'created_at': '2026-10-01T10:00:00+00:00',
+        'question_id': 'not-a-number',
+      });
+
+      expect(m.questionId, isNull);
+      expect(m.isAboutQuestion, isFalse);
+    });
+
     test('a malformed date does not take the whole list down', () {
       // This list is the only place a student reads an admin's reply, so one bad
       // field must not throw past the parse.

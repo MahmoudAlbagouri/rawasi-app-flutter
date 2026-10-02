@@ -75,13 +75,16 @@ class _LessonFlowViewState extends State<LessonFlowView>
   final List<Question> _reviewQueue = [];
   int _easyCount = 0;
 
-  /// Set when this sitting picked up a part-finished lesson instead of starting
-  /// it over. Drives the notice at the top, so a student who left after question
-  /// 5 of 20 understands why they are now looking at question 1 of 15.
-  int _resumedFrom = 0;
-  int _resumedTotal = 0;
+  /// What this sitting is working through, and what was already behind the
+  /// student when it began. Held whole rather than as loose counters so the
+  /// notice, the question number, the tick count and the progress bar are all
+  /// driven by one tested object (lesson_resume.dart) and cannot drift apart.
+  LessonResume _resume = LessonResume.empty;
 
-  bool get _isResumed => _resumedFrom > 0;
+  bool get _isResumed => _resume.isResumed;
+
+  /// Where the current question sits IN THE LESSON, counting from one.
+  int get _lessonPosition => _resume.positionInLesson(_index);
 
   /// Time actually spent on screen, per question.
   ///
@@ -191,9 +194,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
       final resume = resumeLesson(questions);
 
       setState(() {
+        _resume = resume;
         _pass = resume.questions;
-        _resumedFrom = resume.alreadyDone;
-        _resumedTotal = resume.total;
         _index = 0;
         _easyCount = 0;
         _reviewQueue.clear();
@@ -359,6 +361,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
   }
 
   String get _appBarTitle => switch (_phase) {
+        // The review pass counts its own queue: those ARE all the questions
+        // being reviewed, so there is no larger total to measure against.
         _Phase.review => 'مراجعة السؤال ${_index + 1} من ${_pass.length}',
         _Phase.reviewIntro => 'مهمة غير مكتملة',
         _Phase.done => 'تم إنهاء الدرس',
@@ -464,9 +468,12 @@ class _LessonFlowViewState extends State<LessonFlowView>
                     ),
                     const Spacer(),
                     CustomText(
+                      // Numbered against the whole lesson, not against what is
+                      // left of it, so this line and the resume notice above
+                      // tell the student the same story.
                       text: _isReviewPass
                           ? 'مراجعة ${_index + 1} من ${_pass.length}'
-                          : 'السؤال ${_index + 1} من ${_pass.length}',
+                          : 'السؤال $_lessonPosition من ${_resume.total}',
                       color: AppColors.gray600,
                       size: 13,
                       weight: FontWeight.w600,
@@ -667,7 +674,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
           const Gap(10),
           Expanded(
             child: CustomText(
-              text: 'تم استئناف الدرس — أكملت $_resumedFrom من $_resumedTotal سؤالاً',
+              text: 'تم استئناف الدرس — أكملت ${_resume.alreadyDone}'
+                  ' من ${_resume.total} سؤالاً',
               color: AppColors.success700,
               size: 13,
               weight: FontWeight.w600,
@@ -844,7 +852,14 @@ class _LessonFlowViewState extends State<LessonFlowView>
       children: [
         item(Icons.refresh, _reviewQueue.length, AppColors.brandPrimary),
         item(Icons.pending_outlined, _pass.length - _index - 1, AppColors.gray600),
-        item(Icons.check_circle_outline, _easyCount, AppColors.success600),
+        // Questions already behind the student in this LESSON, not only in this
+        // sitting — otherwise a resumed lesson showed a tick count of 0 beside
+        // a notice saying two were already done.
+        item(
+          Icons.check_circle_outline,
+          _isReviewPass ? _easyCount : _resume.alreadyDone + _easyCount,
+          AppColors.success600,
+        ),
       ],
     );
   }
@@ -852,10 +867,18 @@ class _LessonFlowViewState extends State<LessonFlowView>
   Widget _progressBar() {
     // One segment per question, like the old dotted indicator. Segments stay
     // legible at any count because they share the row width.
+    //
+    // On the first pass the bar spans the whole LESSON, with the questions
+    // completed in earlier sittings already filled in. Drawing only what is
+    // left would restart the bar from empty every time a student came back,
+    // which is the visual version of the same "it forgot my progress" problem.
+    final total = _isReviewPass ? _pass.length : _resume.total;
+    final offset = _isReviewPass ? 0 : _resume.alreadyDone;
+
     return Row(
-      children: List.generate(_pass.length, (i) {
-        final done = i < _index;
-        final current = i == _index;
+      children: List.generate(total, (i) {
+        final done = i < offset + _index;
+        final current = i == offset + _index;
         return Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 1.5),

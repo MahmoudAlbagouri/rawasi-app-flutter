@@ -81,6 +81,41 @@ class MessageCard extends StatelessWidget {
               ),
               const Gap(16),
 
+              // For a note written against one question from inside a lesson:
+              // the question it was about. Without it a reply like "تم التصحيح"
+              // arrives with no referent and the student cannot tell which of
+              // their notes it answers.
+              if (msg.isAboutQuestion) ...[
+                Text(
+                  'عن هذا السؤال في الدروس:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.warning700,
+                  ),
+                ),
+                const Gap(6),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.gray50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.warning700.withOpacity(0.25),
+                    ),
+                  ),
+                  child: Text(
+                    // The question text is only sent when the API loaded it; a
+                    // question deleted from the curriculum since leaves the
+                    // message intact with nothing to show for it.
+                    msg.question ?? 'سؤال غير متاح حاليًا',
+                    style: TextStyle(fontSize: 14, color: AppColors.gray700),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                const Gap(16),
+              ],
+
               // الرد (إن وُجد)
               if (msg.reply != null && msg.reply!.isNotEmpty) ...[
                 Text(
@@ -176,7 +211,8 @@ class MessageCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.question_mark,
+                // Tells the two kinds of message apart at a glance in the list.
+                message.isAboutQuestion ? Icons.flag_outlined : Icons.question_mark,
                 size: 16,
                 color: AppColors.brandPrimary,
               ),
@@ -197,9 +233,24 @@ class MessageCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const Gap(6),
-                  Text(
-                    '${message.createdAt.day}/${message.createdAt.month}/${message.createdAt.year}',
-                    style: TextStyle(color: AppColors.gray500, fontSize: 12),
+                  Row(
+                    children: [
+                      Text(
+                        '${message.createdAt.day}/${message.createdAt.month}/${message.createdAt.year}',
+                        style: TextStyle(color: AppColors.gray500, fontSize: 12),
+                      ),
+                      if (message.isAboutQuestion) ...[
+                        const Gap(8),
+                        Text(
+                          'ملاحظة على سؤال',
+                          style: TextStyle(
+                            color: AppColors.warning700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

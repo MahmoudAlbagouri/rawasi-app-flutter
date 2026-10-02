@@ -33,7 +33,11 @@ class ContactRepo {
   }) async {
     return _send({
       'message': message,
-      'question_id': questionId.toString(),
+      // A number, not a string. Sending "4821" was harmless to validation but
+      // it is what Eloquent echoed straight back as a string, which the model
+      // parser then choked on. Send the right type and the round trip is clean
+      // whatever the server does with it.
+      'question_id': questionId,
     });
   }
 
@@ -41,7 +45,7 @@ class ContactRepo {
   Future<ContactMessage> sendMessage(String message) =>
       _send({'message': message});
 
-  Future<ContactMessage> _send(Map<String, String> body) async {
+  Future<ContactMessage> _send(Map<String, dynamic> body) async {
     final result = await _api.post('/contact-support', body);
 
     // ApiServices RETURNS an ApiError instead of throwing it, so a 422 arrives
@@ -58,7 +62,7 @@ class ContactRepo {
       // accepted, which is what the caller asked about, so this is not an error.
       return ContactMessage(
         id: 0,
-        message: body['message'] ?? '',
+        message: body['message']?.toString() ?? '',
         createdAt: DateTime.now(),
       );
     }

@@ -225,13 +225,13 @@
 // lib/features/contact/views/contact_view.dart
 // lib/features/contact/views/contact_view.dart
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // ← مهم لـ Clipboard
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
-import 'package:rawasi_app_n/core/network/api_services.dart';
+import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/contact/data/contact_message.dart';
+import 'package:rawasi_app_n/features/contact/data/contact_repo.dart';
 import 'package:rawasi_app_n/features/contact/widgets/message_card.dart';
 import 'package:rawasi_app_n/features/contact/widgets/send_message_form.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
@@ -274,15 +274,19 @@ class _ContactViewState extends State<ContactView>
     super.dispose();
   }
 
+  /// Past messages, through the repo rather than Dio.
+  ///
+  /// This screen used to call ApiServices directly, which is both against the
+  /// repo convention and a second code path to an endpoint that has since grown
+  /// a question_id. Two parsers for one response is how the two drift apart.
+  ///
+  /// Still swallows failures into an empty list: the builder below renders "لا
+  /// توجد رسائل سابقة" either way, and a toast on top of the send form would be
+  /// noise rather than help.
   Future<List<ContactMessage>> fetchMessages() async {
     try {
-      final response = await ApiServices().get('/my-contact-support');
-      if (response is Map && response['success'] == true) {
-        final List<dynamic> data = response['data'];
-        return data.map((e) => ContactMessage.fromJson(e)).toList();
-      }
-      return [];
-    } catch (e) {
+      return await ContactRepo().fetchMessages();
+    } catch (_) {
       return [];
     }
   }
@@ -292,27 +296,26 @@ class _ContactViewState extends State<ContactView>
     if (message.isEmpty) return;
 
     try {
-      final response = await ApiServices().postFormData(
-        '/contact-support',
-        FormData.fromMap({'message': message}),
+      await ContactRepo().sendMessage(message);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إرسال الرسالة بنجاح.'),
+          backgroundColor: AppColors.brandPrimary,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      if (response is Map && response['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message']),
-            backgroundColor: AppColors.brandPrimary,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        _controller.clear();
-        setState(() {
-          _messagesFuture = fetchMessages();
-        });
-      }
+      _controller.clear();
+      setState(() {
+        _messagesFuture = fetchMessages();
+      });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('حدث خطأ أثناء الإرسال'),
+          // The server's own reason where there is one - a validation message
+          // beats "something went wrong", which tells the student nothing.
+          content: Text(e is ApiError ? e.message : 'حدث خطأ أثناء الإرسال'),
           backgroundColor: AppColors.error500,
           behavior: SnackBarBehavior.floating,
         ),
