@@ -21,8 +21,19 @@ class Lesson {
   final bool requiresPayment;
 
   /// How many of this course's lessons the free plan reaches, or null when the
-  /// student is not capped.
+  /// student is not capped. Measured against the course's fixed curriculum
+  /// total, rounded down — never more than 25% of it.
   final int? freeLimitLessons;
+
+  /// Which free-plan limit is in the way when [requiresPayment]:
+  /// 'free_limit' (the 25% content cap) or 'trial_ended' (the 15-day free
+  /// period). Null otherwise, and on older backends.
+  final String? paywallReason;
+
+  static const String paywallFreeLimit = 'free_limit';
+  static const String paywallTrialEnded = 'trial_ended';
+
+  bool get isTrialEndedPaywall => paywallReason == paywallTrialEnded;
 
   Lesson({
     required this.id,
@@ -37,6 +48,7 @@ class Lesson {
     this.unlockedAt,
     this.requiresPayment = false,
     this.freeLimitLessons,
+    this.paywallReason,
   });
 
   factory Lesson.fromJson(Map<String, dynamic> json) {
@@ -53,6 +65,7 @@ class Lesson {
       unlockedAt: json['unlocked_at'] as String?,
       requiresPayment: json['requires_payment'] == true,
       freeLimitLessons: json['free_limit_lessons'] as int?,
+      paywallReason: json['paywall_reason'] as String?,
     );
   }
 

@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
+import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
@@ -117,6 +118,16 @@ class _LessonFlowViewState extends State<LessonFlowView>
   /// student finishes their last free lesson is exactly when the reason matters.
   bool _nextNeedsSubscription = false;
 
+  /// The paywall is the 15-day free period ending, not the 25% cap.
+  bool _trialEnded = false;
+
+  /// Plans -> receipt -> back to the lesson list, which re-reads from the
+  /// server what is open now. Nothing is unlocked on the device.
+  Future<void> _openSubscription() async {
+    await SubscriptionView.open(context);
+    if (mounted) Navigator.pop(context);
+  }
+
   Question get _current => _pass[_index];
   bool get _isReviewPass => _phase == _Phase.review;
 
@@ -171,8 +182,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
   }
 
   /// Seconds to report for [questionId], clamped to what the API accepts.
-  int _durationFor(int questionId) =>
-      ((_bankedMs[questionId] ?? 0) / 1000).round().clamp(0, _maxQuestionSeconds);
+  int _durationFor(int questionId) => ((_bankedMs[questionId] ?? 0) / 1000)
+      .round()
+      .clamp(0, _maxQuestionSeconds);
 
   Future<void> _load() async {
     setState(() {
@@ -230,8 +242,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
         // backend records replays as no-ops by design - so there is nothing
         // for a duration to attach to. Omitting it keeps the request honest
         // instead of sending time that will be silently dropped.
-        durationSeconds:
-            question.isCompleted ? null : _durationFor(question.questionId),
+        durationSeconds: question.isCompleted
+            ? null
+            : _durationFor(question.questionId),
       );
       if (!mounted) return;
       setState(() => _easyCount++);
@@ -295,11 +308,17 @@ class _LessonFlowViewState extends State<LessonFlowView>
       if (!mounted) return;
       _courseLessons = lessons;
       _nextLesson = lessons
-          .where((l) => l.id != widget.lessonId && !l.isCompleted && l.isUnlocked)
-          .fold<Lesson?>(null, (best, l) => best == null || l.order < best.order ? l : best);
+          .where(
+            (l) => l.id != widget.lessonId && !l.isCompleted && l.isUnlocked,
+          )
+          .fold<Lesson?>(
+            null,
+            (best, l) => best == null || l.order < best.order ? l : best,
+          );
 
       _nextNeedsSubscription =
           _nextLesson == null && lessons.any((l) => l.requiresPayment);
+      _trialEnded = lessons.any((l) => l.isTrialEndedPaywall);
     } catch (_) {
       // The lesson is already completed server-side; stats are a nice-to-have.
     }
@@ -361,13 +380,13 @@ class _LessonFlowViewState extends State<LessonFlowView>
   }
 
   String get _appBarTitle => switch (_phase) {
-        // The review pass counts its own queue: those ARE all the questions
-        // being reviewed, so there is no larger total to measure against.
-        _Phase.review => 'مراجعة السؤال ${_index + 1} من ${_pass.length}',
-        _Phase.reviewIntro => 'مهمة غير مكتملة',
-        _Phase.done => 'تم إنهاء الدرس',
-        _ => widget.lessonTitle,
-      };
+    // The review pass counts its own queue: those ARE all the questions
+    // being reviewed, so there is no larger total to measure against.
+    _Phase.review => 'مراجعة السؤال ${_index + 1} من ${_pass.length}',
+    _Phase.reviewIntro => 'مهمة غير مكتملة',
+    _Phase.done => 'تم إنهاء الدرس',
+    _ => widget.lessonTitle,
+  };
 
   Widget _body() {
     switch (_phase) {
@@ -406,7 +425,10 @@ class _LessonFlowViewState extends State<LessonFlowView>
               onPressed: _load,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
               ),
               child: const Text(
                 'إعادة المحاولة',
@@ -453,7 +475,10 @@ class _LessonFlowViewState extends State<LessonFlowView>
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary50,
                         borderRadius: BorderRadius.circular(10),
@@ -499,7 +524,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
                   ),
                   const Gap(8),
                   _panel(
-                    q.answer.isEmpty ? 'لا توجد إجابة مسجلة لهذا السؤال.' : q.answer,
+                    q.answer.isEmpty
+                        ? 'لا توجد إجابة مسجلة لهذا السؤال.'
+                        : q.answer,
                     tinted: true,
                   ),
                 ],
@@ -520,7 +547,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
         color: tinted ? AppColors.success50 : Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: tinted ? AppColors.success500.withOpacity(0.35) : AppColors.gray200,
+          color: tinted
+              ? AppColors.success500.withOpacity(0.35)
+              : AppColors.gray200,
         ),
       ),
       child: CustomText(text: text, color: AppColors.gray800, size: 15),
@@ -567,7 +596,11 @@ class _LessonFlowViewState extends State<LessonFlowView>
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _busy ? null : _markEasy,
-                icon: const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 label: const Text(
                   'تحويل هذا السؤال إلى "سهل"',
                   style: TextStyle(
@@ -592,7 +625,11 @@ class _LessonFlowViewState extends State<LessonFlowView>
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _busy ? null : _markEasy,
-                    icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     label: const Text(
                       'سهل',
                       style: TextStyle(
@@ -670,11 +707,16 @@ class _LessonFlowViewState extends State<LessonFlowView>
       ),
       child: Row(
         children: [
-          Icon(Icons.play_circle_outline, color: AppColors.success700, size: 20),
+          Icon(
+            Icons.play_circle_outline,
+            color: AppColors.success700,
+            size: 20,
+          ),
           const Gap(10),
           Expanded(
             child: CustomText(
-              text: 'تم استئناف الدرس — أكملت ${_resume.alreadyDone}'
+              text:
+                  'تم استئناف الدرس — أكملت ${_resume.alreadyDone}'
                   ' من ${_resume.total} سؤالاً',
               color: AppColors.success700,
               size: 13,
@@ -720,7 +762,11 @@ class _LessonFlowViewState extends State<LessonFlowView>
             children: [
               Row(
                 children: [
-                  Icon(Icons.flag_outlined, color: AppColors.brandPrimary, size: 22),
+                  Icon(
+                    Icons.flag_outlined,
+                    color: AppColors.brandPrimary,
+                    size: 22,
+                  ),
                   const Gap(10),
                   Expanded(
                     child: CustomText(
@@ -738,7 +784,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
               ),
               const Gap(4),
               CustomText(
-                text: 'اكتب استفسارك أو أبلغ عن خطأ في السؤال أو إجابته، وسيصلك الرد في صفحة تواصل معنا.',
+                text:
+                    'اكتب استفسارك أو أبلغ عن خطأ في السؤال أو إجابته، وسيصلك الرد في صفحة تواصل معنا.',
                 color: AppColors.gray600,
                 size: 12,
               ),
@@ -784,7 +831,10 @@ class _LessonFlowViewState extends State<LessonFlowView>
                             if (!sheetContext.mounted) return;
                             Navigator.pop(sheetContext);
                             if (mounted) {
-                              _snack('تم إرسال ملاحظتك، شكرًا لك', success: true);
+                              _snack(
+                                'تم إرسال ملاحظتك، شكرًا لك',
+                                success: true,
+                              );
                             }
                           } catch (e) {
                             if (!sheetContext.mounted) return;
@@ -794,7 +844,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
                             ScaffoldMessenger.of(sheetContext).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  e is ApiError ? e.message : 'تعذّر إرسال الملاحظة',
+                                  e is ApiError
+                                      ? e.message
+                                      : 'تعذّر إرسال الملاحظة',
                                 ),
                                 backgroundColor: AppColors.error600,
                               ),
@@ -834,24 +886,28 @@ class _LessonFlowViewState extends State<LessonFlowView>
   /// "3 ↻ | 10 | 1 ✓" — review queue, remaining in this pass, done so far.
   Widget _counters() {
     Widget item(IconData icon, int value, Color color) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const Gap(4),
-            CustomText(
-              text: '$value',
-              color: color,
-              size: 14,
-              weight: FontWeight.bold,
-            ),
-          ],
-        );
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const Gap(4),
+        CustomText(
+          text: '$value',
+          color: color,
+          size: 14,
+          weight: FontWeight.bold,
+        ),
+      ],
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         item(Icons.refresh, _reviewQueue.length, AppColors.brandPrimary),
-        item(Icons.pending_outlined, _pass.length - _index - 1, AppColors.gray600),
+        item(
+          Icons.pending_outlined,
+          _pass.length - _index - 1,
+          AppColors.gray600,
+        ),
         // Questions already behind the student in this LESSON, not only in this
         // sitting — otherwise a resumed lesson showed a tick count of 0 beside
         // a notice saying two were already done.
@@ -887,8 +943,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
               color: current
                   ? AppColors.brandPrimary
                   : done
-                      ? AppColors.success500
-                      : AppColors.gray200,
+                  ? AppColors.success500
+                  : AppColors.gray200,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -925,7 +981,11 @@ class _LessonFlowViewState extends State<LessonFlowView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.info_outline, color: AppColors.brandPrimary, size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: AppColors.brandPrimary,
+                      size: 20,
+                    ),
                     const Gap(8),
                     CustomText(
                       text: 'ملاحظة هامة',
@@ -1030,7 +1090,12 @@ class _LessonFlowViewState extends State<LessonFlowView>
             weight: FontWeight.bold,
           ),
           const Gap(4),
-          CustomText(text: label, color: color, size: 14, weight: FontWeight.w600),
+          CustomText(
+            text: label,
+            color: color,
+            size: 14,
+            weight: FontWeight.w600,
+          ),
         ],
       ),
     );
@@ -1054,8 +1119,10 @@ class _LessonFlowViewState extends State<LessonFlowView>
     // The celebration fires ONLY against the real curriculum total. Exhausting
     // what happens to be uploaded is a different — and right now very common —
     // state, and saying "you finished the subject" there would be false.
-    final finishedSubject = curriculumTotal != null && completed >= curriculumTotal;
-    final finishedAvailable = !finishedSubject && available > 0 && completed >= available;
+    final finishedSubject =
+        curriculumTotal != null && completed >= curriculumTotal;
+    final finishedAvailable =
+        !finishedSubject && available > 0 && completed >= available;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1116,13 +1183,13 @@ class _LessonFlowViewState extends State<LessonFlowView>
                     text: finishedSubject
                         ? 'أكملت جميع دروس هذه المادة 🎉'
                         : finishedAvailable
-                            ? 'أنهيت كل الدروس المتاحة حاليًا — والمزيد في الطريق'
-                            : 'المتبقي: $remaining درسًا',
+                        ? 'أنهيت كل الدروس المتاحة حاليًا — والمزيد في الطريق'
+                        : 'المتبقي: $remaining درسًا',
                     color: finishedSubject
                         ? AppColors.success700
                         : finishedAvailable
-                            ? AppColors.brandPrimary
-                            : AppColors.gray600,
+                        ? AppColors.brandPrimary
+                        : AppColors.gray600,
                     size: 14,
                     weight: FontWeight.w600,
                     align: TextAlign.center,
@@ -1133,39 +1200,51 @@ class _LessonFlowViewState extends State<LessonFlowView>
             const Gap(16),
           ],
           if (_nextLesson == null && _nextNeedsSubscription)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primary50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.brandPrimary.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.workspace_premium, color: AppColors.warning700),
-                  const Gap(10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomText(
-                          text: 'انتهى الحد المجاني من هذه المادة',
-                          color: AppColors.gray900,
-                          size: 14,
-                          weight: FontWeight.bold,
-                        ),
-                        const Gap(4),
-                        CustomText(
-                          text: 'اشترك لمتابعة باقي دروس المادة',
-                          color: AppColors.gray700,
-                          size: 13,
-                        ),
-                      ],
-                    ),
+            // Tappable: the paywall leads to the plans. Afterwards we go back
+            // to the lesson list, which re-reads what the server now opens.
+            GestureDetector(
+              onTap: _openSubscription,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.brandPrimary.withOpacity(0.3),
                   ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.workspace_premium, color: AppColors.warning700),
+                    const Gap(10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CustomText(
+                            text: _trialEnded
+                                ? 'انتهت الفترة المجانية (15 يومًا)'
+                                : 'انتهى الحد المجاني من هذه المادة',
+                            color: AppColors.gray900,
+                            size: 14,
+                            weight: FontWeight.bold,
+                          ),
+                          const Gap(4),
+                          CustomText(
+                            text: 'اشترك لمتابعة باقي الدروس',
+                            color: AppColors.brandPrimary,
+                            size: 13,
+                            weight: FontWeight.w600,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_left,
+                      color: AppColors.brandPrimary,
+                    ),
+                  ],
+                ),
               ),
             ),
           if (_nextLesson != null)
@@ -1174,7 +1253,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
               decoration: BoxDecoration(
                 color: AppColors.success50,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.success500.withOpacity(0.4)),
+                border: Border.all(
+                  color: AppColors.success500.withOpacity(0.4),
+                ),
               ),
               child: Row(
                 children: [

@@ -182,7 +182,7 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           CustomText(
-                            text: 'الشهر الأول مجانًا',
+                            text: 'أول 15 يومًا مجانًا',
                             color: AppColors.brandPrimary,
                             size: 15,
                             weight: FontWeight.bold,
@@ -190,7 +190,7 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
                           Gap(4),
                           CustomText(
                             text:
-                                'لا حاجة لاختيار باقة أو دفع أي رسوم للاشتراك الآن.',
+                                'ابدأ دون اختيار باقة أو دفع أي رسوم، ثم اشترك لمتابعة باقي الدروس.',
                             color: AppColors.gray700,
                             size: 13,
                           ),

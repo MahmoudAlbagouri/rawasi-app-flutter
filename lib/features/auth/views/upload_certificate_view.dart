@@ -10,7 +10,6 @@ import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 import 'package:rawasi_app_n/features/auth/data/subscription_repo.dart';
-import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 enum UploadState { idle, uploading, success, error }
@@ -217,12 +216,10 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
       } else {
         timer.cancel();
         if (mounted) {
-          // التوجيه إلى الصفحة الرئيسية
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeView()),
-            (route) => false,
-          );
+          // Back to the plan list with `true`, which closes it too and lands
+          // the student on the course they were in — now showing the request
+          // as pending. Not home: they came here from a lesson.
+          Navigator.pop(context, true);
         }
       }
     });
@@ -383,7 +380,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                         ),
                         const Gap(24),
                         CustomText(
-                          text: 'تم الرفع بنجاح!',
+                          text: 'تم استلام إيصال الدفع',
                           color: AppColors.gray900,
                           size: 22,
                           weight: FontWeight.bold,
@@ -391,7 +388,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                         const Gap(8),
                         CustomText(
                           text:
-                              'سيتم تحويلك إلى الصفحة الرئيسية بعد $_countdown ثواني...',
+                              'سيتم تفعيل اشتراكك بعد مراجعة الإيصال، وتكمل دروسك من حيث توقفت.\nالعودة خلال $_countdown ثوانٍ...',
                           color: AppColors.gray700,
                           size: 15,
                           align: TextAlign.center,

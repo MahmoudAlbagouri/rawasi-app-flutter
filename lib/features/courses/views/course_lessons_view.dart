@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
+import 'package:rawasi_app_n/core/profile/profile_repository.dart';
+import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
@@ -26,6 +28,12 @@ class CourseLessonsView extends StatefulWidget {
     this.progress,
   });
 
+  /// Whether to show the "متاح لك مجانًا" notice: only when the free plan
+  /// actually withholds part of the course. [total] is the curriculum total
+  /// (the number the progress bars show), not the lessons uploaded so far.
+  static bool showAllowanceNotice(int? freeLimit, int total) =>
+      freeLimit != null && total > freeLimit;
+
   @override
   State<CourseLessonsView> createState() => _CourseLessonsViewState();
 }
@@ -33,16 +41,40 @@ class CourseLessonsView extends StatefulWidget {
 class _CourseLessonsViewState extends State<CourseLessonsView> {
   late Future<List<Lesson>> _lessonsFuture;
 
+  /// A receipt is waiting for an admin: the paywall then says "under review"
+  /// instead of asking the student to pay a second time.
+  bool _paymentPending = false;
+
   @override
   void initState() {
     super.initState();
     _lessonsFuture = CoursesRepo().fetchLessons(widget.courseId);
+    _loadPaymentState();
   }
 
   void _refresh() {
     setState(() {
       _lessonsFuture = CoursesRepo().fetchLessons(widget.courseId);
     });
+  }
+
+  Future<void> _loadPaymentState() async {
+    try {
+      final profile = await ProfileRepository().fetchProfile();
+      if (mounted) setState(() => _paymentPending = profile.paymentPending);
+    } catch (_) {
+      // Only changes a caption; the lock itself comes from the server.
+    }
+  }
+
+  /// "اشترك لمتابعة باقي الدروس" -> plans -> receipt -> back here. Whatever
+  /// happened there, re-read both the lessons and the payment state: the
+  /// server decides what is open, so nothing is assumed on the device.
+  Future<void> _openSubscription() async {
+    await SubscriptionView.open(context);
+    if (!mounted) return;
+    _refresh();
+    await _loadPaymentState();
   }
 
   @override
@@ -78,7 +110,11 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                   ? (snapshot.error as ApiError).message
                   : 'فشل تحميل الدروس';
               return Center(
-                child: CustomText(text: msg, color: AppColors.error600, size: 15),
+                child: CustomText(
+                  text: msg,
+                  color: AppColors.error600,
+                  size: 15,
+                ),
               );
             }
             final lessons = snapshot.data ?? [];
@@ -94,7 +130,11 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
             // The free-plan allowance, if this student has one. Every lesson
             // carries the same figure, so the first is as good as any.
             final freeLimit = lessons.first.freeLimitLessons;
-            final capped = freeLimit != null && lessons.length > freeLimit;
+            final total = widget.progress?.totalLessons ?? lessons.length;
+            final trialEnded = lessons.any((l) => l.isTrialEndedPaywall);
+            final capped =
+                trialEnded ||
+                CourseLessonsView.showAllowanceNotice(freeLimit, total);
 
             return ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -103,7 +143,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
               separatorBuilder: (context, index) => const Gap(12),
               itemBuilder: (context, index) {
                 if (capped && index == 0) {
-                  return _freeAllowanceNotice(freeLimit, lessons.length);
+                  return _freeAllowanceNotice(freeLimit, total, trialEnded);
                 }
 
                 return _lessonCard(lessons[index - (capped ? 1 : 0)]);
@@ -120,38 +160,56 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
   /// Stated once, at the top, as a plain count rather than a percentage: the
   /// student can count the open lessons in the list below and see that the
   /// number is true. A percentage would be a claim they cannot check.
-  Widget _freeAllowanceNotice(int freeLimit, int total) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.primary50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.brandPrimary.withOpacity(0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.card_giftcard, color: AppColors.brandPrimary, size: 24),
-          const Gap(12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomText(
-                  text: 'متاح لك مجانًا: $freeLimit من $total درسًا',
-                  color: AppColors.gray900,
-                  size: 14,
-                  weight: FontWeight.w600,
-                ),
-                const Gap(4),
-                CustomText(
-                  text: 'اشترك لمتابعة باقي دروس المادة',
-                  color: AppColors.gray600,
-                  size: 12,
-                ),
-              ],
+  Widget _freeAllowanceNotice(int? freeLimit, int total, bool trialEnded) {
+    final String title;
+    final String subtitle;
+    if (_paymentPending) {
+      title = 'طلب اشتراكك قيد المراجعة';
+      subtitle = 'سيُفتح باقي الدروس فور تأكيد الدفع';
+    } else if (trialEnded) {
+      title = 'انتهت الفترة المجانية (15 يومًا)';
+      subtitle = 'اشترك لمتابعة باقي الدروس';
+    } else {
+      title = 'متاح لك مجانًا: $freeLimit من $total درسًا';
+      subtitle = 'اشترك لمتابعة باقي الدروس';
+    }
+
+    return GestureDetector(
+      onTap: _openSubscription,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.primary50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.brandPrimary.withOpacity(0.25)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.card_giftcard, color: AppColors.brandPrimary, size: 24),
+            const Gap(12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomText(
+                    text: title,
+                    color: AppColors.gray900,
+                    size: 14,
+                    weight: FontWeight.w600,
+                  ),
+                  const Gap(4),
+                  CustomText(
+                    text: subtitle,
+                    color: AppColors.brandPrimary,
+                    size: 12,
+                    weight: FontWeight.w600,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const Icon(Icons.chevron_left, color: AppColors.brandPrimary),
+          ],
+        ),
       ),
     );
   }
@@ -186,6 +244,10 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
               );
               _refresh();
             }
+          // The paywall is the one lock the student can act on: it leads to
+          // the plans. An ordinary sequence lock stays inert.
+          : lesson.requiresPayment
+          ? _openSubscription
           : null,
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -222,7 +284,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                       child: LinearProgressIndicator(
                         value: lesson.questionsCount > 0
                             ? lesson.completedQuestionsCount /
-                                lesson.questionsCount
+                                  lesson.questionsCount
                             : 0,
                         color: color,
                         backgroundColor: AppColors.gray200,
@@ -242,7 +304,11 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                       const Gap(6),
                       Row(
                         children: [
-                          Icon(Icons.replay, size: 16, color: AppColors.brandPrimary),
+                          Icon(
+                            Icons.replay,
+                            size: 16,
+                            color: AppColors.brandPrimary,
+                          ),
                           const Gap(4),
                           CustomText(
                             text: 'حل مرة أخرى',
@@ -253,12 +319,14 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                         ],
                       ),
                     ],
-                    ] else if (lesson.requiresPayment)
+                  ] else if (lesson.requiresPayment)
                     // The one lock the student can do something about today.
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: CustomText(
-                        text: 'اشترك لمتابعة باقي الدروس',
+                        text: _paymentPending
+                            ? 'طلب اشتراكك قيد المراجعة'
+                            : 'اشترك لمتابعة باقي الدروس',
                         color: AppColors.warning700,
                         size: 12,
                         weight: FontWeight.w600,

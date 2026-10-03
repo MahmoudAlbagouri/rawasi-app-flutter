@@ -21,6 +21,16 @@ class Student {
   final int? quranLevel;
   final String? paidCertificate;
   final bool isUploadPaidCertificate;
+
+  /// Admin-approved payment: the free plan's limits no longer apply.
+  final bool hasPaidSubscription;
+
+  /// A receipt is uploaded and waiting for an admin — still on the free plan.
+  final bool paymentPending;
+
+  /// The 15-day free period is over (never true for a paid student).
+  final bool freePlanExpired;
+
   final bool isActive;
   final bool isProfileCompleted;
   final String academicYear;
@@ -57,6 +67,9 @@ class Student {
     this.quranLevel,
     this.paidCertificate,
     required this.isUploadPaidCertificate,
+    this.hasPaidSubscription = false,
+    this.paymentPending = false,
+    this.freePlanExpired = false,
     required this.isActive,
     required this.isProfileCompleted,
     required this.academicYear,
@@ -113,9 +126,17 @@ class Student {
       phone1: _str(json['phone1']) ?? '',
       phone2: _str(json['phone2']),
       isWhatsapp: _bool(json['is_whatsapp']),
-      quranLevel: json['quran_level'] == null ? null : _int(json['quran_level']),
+      quranLevel: json['quran_level'] == null
+          ? null
+          : _int(json['quran_level']),
       paidCertificate: _str(json['paid_certificate']),
       isUploadPaidCertificate: _bool(json['is_upload_paid_certificate']),
+      // Older backends lack the key; there the flag itself meant "paid".
+      hasPaidSubscription: json.containsKey('has_paid_subscription')
+          ? _bool(json['has_paid_subscription'])
+          : _bool(json['is_upload_paid_certificate']),
+      paymentPending: _bool(json['payment_pending']),
+      freePlanExpired: _bool(json['free_plan_expired']),
       isActive: _bool(json['is_active']),
       isProfileCompleted: _bool(json['is_profile_completed']),
       academicYear: _str(json['academic_year']) ?? '',
@@ -130,7 +151,9 @@ class Student {
       createdAt: _str(json['created_at']),
       updatedAt: _str(json['updated_at']),
       activeAt: _str(json['active_at']),
-      availableDays: json['available_days'] == null ? 0 : _int(json['available_days']),
+      availableDays: json['available_days'] == null
+          ? 0
+          : _int(json['available_days']),
       progress: _double(json['progress'] ?? 0),
     );
   }

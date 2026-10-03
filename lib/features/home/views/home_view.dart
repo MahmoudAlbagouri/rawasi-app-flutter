@@ -232,7 +232,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 Gap(4),
                 CustomText(
-                  text: 'الشهر الأول مجانًا، بدون أي رسوم.',
+                  text: 'أول 15 يومًا مجانًا، بدون أي رسوم.',
                   color: AppColors.gray600,
                   size: 13,
                 ),

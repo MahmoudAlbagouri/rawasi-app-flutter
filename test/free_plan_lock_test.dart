@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rawasi_app_n/core/models/student.dart';
+import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
+import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
+import 'package:rawasi_app_n/features/courses/views/course_lessons_view.dart';
 
 /// A student on the free plan reaches the first 25% of each subject. Beyond
 /// that, lessons arrive locked with `requires_payment`, and the app has to tell
@@ -12,26 +16,29 @@ Map<String, dynamic> _json({
   bool completed = false,
   bool? requiresPayment,
   int? freeLimit,
-}) =>
-    {
-      'id': 7,
-      'course_id': 3,
-      'title': 'الدرس السابع',
-      'order': 7,
-      'status': status,
-      'is_unlocked': unlocked,
-      'is_completed': completed,
-      'questions_count': 4,
-      'completed_questions_count': 0,
-      'unlocked_at': null,
-      if (requiresPayment != null) 'requires_payment': requiresPayment,
-      if (freeLimit != null) 'free_limit_lessons': freeLimit,
-    };
+  String? paywallReason,
+}) => {
+  'id': 7,
+  'course_id': 3,
+  'title': 'الدرس السابع',
+  'order': 7,
+  'status': status,
+  'is_unlocked': unlocked,
+  'is_completed': completed,
+  'questions_count': 4,
+  'completed_questions_count': 0,
+  'unlocked_at': null,
+  if (requiresPayment != null) 'requires_payment': requiresPayment,
+  if (freeLimit != null) 'free_limit_lessons': freeLimit,
+  if (paywallReason != null) 'paywall_reason': paywallReason,
+};
 
 void main() {
   group('parsing', () {
     test('a paywalled lesson carries the flag and the allowance', () {
-      final lesson = Lesson.fromJson(_json(requiresPayment: true, freeLimit: 2));
+      final lesson = Lesson.fromJson(
+        _json(requiresPayment: true, freeLimit: 2),
+      );
 
       expect(lesson.requiresPayment, isTrue);
       expect(lesson.freeLimitLessons, 2);
@@ -40,7 +47,9 @@ void main() {
     });
 
     test('an ordinary sequential lock is not a paywall', () {
-      final lesson = Lesson.fromJson(_json(requiresPayment: false, freeLimit: 2));
+      final lesson = Lesson.fromJson(
+        _json(requiresPayment: false, freeLimit: 2),
+      );
 
       expect(lesson.requiresPayment, isFalse);
       expect(
@@ -68,35 +77,121 @@ void main() {
   });
 
   group('the allowance notice', () {
-    // The notice is shown when the course has more lessons than the allowance
-    // covers. Expressed here as the condition the view uses, so the rule is
-    // pinned even though the widget needs a repo to render.
-    bool showNotice(List<Lesson> lessons) {
-      final limit = lessons.first.freeLimitLessons;
+    // The view's own rule. `total` is the CURRICULUM total — the "X من 23"
+    // the progress bars show — not the lessons uploaded so far.
+    final show = CourseLessonsView.showAllowanceNotice;
 
-      return limit != null && lessons.length > limit;
-    }
-
-    List<Lesson> course(int count, {int? freeLimit}) => List.generate(
-          count,
-          (i) => Lesson.fromJson({
-            ..._json(freeLimit: freeLimit),
-            'id': i + 1,
-            'order': i + 1,
-          }),
-        );
-
-    test('appears when lessons sit beyond the allowance', () {
-      expect(showNotice(course(8, freeLimit: 2)), isTrue);
+    test('appears when the course has more lessons than the allowance', () {
+      expect(show(5, 23), isTrue);
     });
 
     test('stays hidden for a paid student', () {
-      expect(showNotice(course(8)), isFalse);
+      expect(show(null, 23), isFalse);
     });
 
     test('stays hidden when the allowance already covers everything', () {
       // Nothing is withheld, so saying "2 of 2 free" would be noise.
-      expect(showNotice(course(2, freeLimit: 2)), isFalse);
+      expect(show(2, 2), isFalse);
+    });
+
+    test('counts the curriculum, not what is uploaded', () {
+      // 4 of 39 lessons uploaded, allowance 9: the subject is still capped.
+      expect(show(9, 39), isTrue);
+    });
+  });
+
+  group('why a lesson is paywalled', () {
+    test('the 25% cap', () {
+      final l = Lesson.fromJson(
+        _json(
+          requiresPayment: true,
+          freeLimit: 5,
+          paywallReason: Lesson.paywallFreeLimit,
+        ),
+      );
+
+      expect(l.requiresPayment, isTrue);
+      expect(l.isTrialEndedPaywall, isFalse);
+    });
+
+    test('the 15-day free period', () {
+      final l = Lesson.fromJson(
+        _json(requiresPayment: true, paywallReason: Lesson.paywallTrialEnded),
+      );
+
+      expect(l.isTrialEndedPaywall, isTrue);
+    });
+
+    test('an older backend sends no reason', () {
+      final l = Lesson.fromJson(_json(requiresPayment: true, freeLimit: 2));
+
+      expect(l.paywallReason, isNull);
+      expect(l.isTrialEndedPaywall, isFalse);
+    });
+  });
+
+  group('payment state on the profile', () {
+    Map<String, dynamic> profile(Map<String, dynamic> extra) => {
+      'id': 1,
+      'phone1': '01000000000',
+      'academic_year': '1',
+      'is_active': true,
+      'is_profile_completed': true,
+      ...extra,
+    };
+
+    test('a pending receipt is not a paid subscription', () {
+      final s = Student.fromJson(
+        profile({
+          'is_upload_paid_certificate': false,
+          'has_paid_subscription': false,
+          'payment_pending': true,
+        }),
+      );
+
+      expect(s.paymentPending, isTrue);
+      expect(s.hasPaidSubscription, isFalse);
+    });
+
+    test('an approved payment is', () {
+      final s = Student.fromJson(
+        profile({
+          'is_upload_paid_certificate': true,
+          'has_paid_subscription': true,
+          'payment_pending': false,
+        }),
+      );
+
+      expect(s.hasPaidSubscription, isTrue);
+      expect(s.paymentPending, isFalse);
+    });
+
+    test('an older backend falls back to the flag itself', () {
+      final s = Student.fromJson(profile({'is_upload_paid_certificate': true}));
+
+      expect(s.hasPaidSubscription, isTrue);
+      expect(s.paymentPending, isFalse);
+      expect(s.freePlanExpired, isFalse);
+    });
+  });
+
+  group('the plans a student can buy', () {
+    SubscriptionPlan plan(int id, double price) => SubscriptionPlan.fromJson({
+      'id': id,
+      'name': 'باقة $id',
+      'price': price,
+      'period_type': 'year',
+      'period_value': 1,
+    });
+
+    test('never include the free plan everyone already has', () {
+      final plans = SubscriptionView.purchasable([
+        plan(4, 0),
+        plan(1, 200),
+        plan(2, 60),
+      ]);
+
+      expect(plans.map((p) => p.id), [1, 2]);
     });
   });
 }

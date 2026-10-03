@@ -1,20 +1,35 @@
 // lib/features/auth/views/subscription_view.dart
 //
-// The "الاشتراك" entry in حسابي.
+// "الاشتراك": where the free-plan paywall ("اشترك لمتابعة باقي الدروس") leads,
+// and the entry in حسابي.
 //
-// free first month: there is nothing to buy and nothing to upload, so this
-// screen reports the student's standing instead of selling a plan. The paid
-// path is not deleted — SubscriptionRepo, SubscriptionCard and
-// UploadCertificateView are all still in the codebase, and the
-// upload-paid-certificate route and column still exist server-side — it is
-// simply no longer reachable from the app.
+// The free plan is two limits, whichever comes first: 15 days from activation
+// and 25% of each course. Paying lifts both. There is no payment gateway — the
+// student transfers the fee, picks a paid plan here and uploads the receipt
+// (UploadCertificateView). That only creates a PENDING request: an admin
+// approves it in the dashboard, and only then does the server stop applying
+// the free-plan limits. Nothing about the student's progress changes — they
+// carry on in the same course from exactly where they stopped.
+//
+// Three states, all read from the server (never inferred on the device):
+//   paid     — has_paid_subscription: nothing to sell.
+//   pending  — payment_pending: receipt is with an admin; say so, sell nothing.
+//   free     — list the paid plans for the student's grade.
+//
+// Opened with SubscriptionView.open(context); it completes with true when the
+// student uploaded a receipt, so the caller can refresh what it shows.
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
+import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
+import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
+import 'package:rawasi_app_n/features/auth/data/subscription_repo.dart';
+import 'package:rawasi_app_n/features/auth/views/upload_certificate_view.dart';
+import 'package:rawasi_app_n/features/auth/widgets/card_subscription.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
@@ -22,26 +37,92 @@ import 'package:rawasi_app_n/shared/custom_text.dart';
 class SubscriptionView extends StatefulWidget {
   const SubscriptionView({super.key});
 
+  /// Opens the screen; true when a receipt was uploaded.
+  static Future<bool> open(BuildContext context) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const SubscriptionView()),
+    );
+    return result == true;
+  }
+
+  /// Only plans that cost something can be bought; the seeded free plan is
+  /// what every student already has.
+  @visibleForTesting
+  static List<SubscriptionPlan> purchasable(List<SubscriptionPlan> plans) =>
+      plans.where((p) => p.price > 0).toList();
+
   @override
   State<SubscriptionView> createState() => _SubscriptionViewState();
 }
 
+class _Page {
+  final Student? profile;
+  final List<SubscriptionPlan> plans;
+  final String? plansError;
+
+  const _Page({this.profile, this.plans = const [], this.plansError});
+}
+
 class _SubscriptionViewState extends State<SubscriptionView> {
-  late Future<Student?> _profileFuture;
+  late Future<_Page> _future;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = _loadProfile();
+    _future = _load();
   }
 
-  Future<Student?> _loadProfile() async {
-    final isSignedIn = await isUserSignedIn();
-    if (!isSignedIn) return null;
+  Future<_Page> _load() async {
+    if (!await isUserSignedIn()) return const _Page();
+
+    final Student profile;
     try {
-      return await ProfileRepository().fetchProfile();
+      profile = await ProfileRepository().fetchProfile();
     } catch (_) {
-      return null;
+      return const _Page();
+    }
+
+    // Plans are only needed by a student who can still buy one.
+    if (profile.hasPaidSubscription || profile.paymentPending) {
+      return _Page(profile: profile);
+    }
+
+    try {
+      final plans = await SubscriptionRepo().fetchPlans(
+        grade: profile.academicYear,
+      );
+      return _Page(
+        profile: profile,
+        plans: SubscriptionView.purchasable(plans),
+      );
+    } catch (e) {
+      return _Page(
+        profile: profile,
+        plansError: e is ApiError
+            ? e.message
+            : 'تعذّر تحميل الباقات، حاول مرة أخرى',
+      );
+    }
+  }
+
+  Future<void> _choose(SubscriptionPlan plan) async {
+    final uploaded = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UploadCertificateView(
+          planId: plan.id,
+          planName: plan.name,
+          planPrice: plan.price,
+          hasDiscount: plan.hasDiscount,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (uploaded == true) {
+      // Straight back to wherever the paywall was, which now shows the
+      // request as pending.
+      Navigator.pop(context, true);
     }
   }
 
@@ -54,7 +135,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.gray800),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, false),
         ),
         title: const Text(
           'الاشتراك',
@@ -67,14 +148,15 @@ class _SubscriptionViewState extends State<SubscriptionView> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: FutureBuilder<Student?>(
-          future: _profileFuture,
+        child: FutureBuilder<_Page>(
+          future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final profile = snapshot.data;
+            final page = snapshot.data ?? const _Page();
+            final profile = page.profile;
             if (profile == null) {
               return const AccountGate(
                 reason: GateReason.signedOut,
@@ -85,14 +167,22 @@ class _SubscriptionViewState extends State<SubscriptionView> {
             final reason = gateFor(profile);
             if (reason != null) return AccountGate(reason: reason);
 
-            return _freeMonthCard();
+            if (profile.hasPaidSubscription) return _paid();
+            if (profile.paymentPending) return _pending();
+            return _plans(page, profile);
           },
         ),
       ),
     );
   }
 
-  Widget _freeMonthCard() {
+  Widget _status({
+    required IconData icon,
+    required Color color,
+    required Color tint,
+    required String title,
+    required String body,
+  }) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -102,28 +192,23 @@ class _SubscriptionViewState extends State<SubscriptionView> {
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: AppColors.success50,
+                color: tint,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.success500),
+                border: Border.all(color: color),
               ),
-              child: const Icon(
-                Icons.card_giftcard_outlined,
-                size: 48,
-                color: AppColors.success600,
-              ),
+              child: Icon(icon, size: 48, color: color),
             ),
             const Gap(20),
-            const CustomText(
-              text: 'اشتراكك مفعّل — الشهر الأول مجانًا',
+            CustomText(
+              text: title,
               color: AppColors.gray900,
               size: 20,
               weight: FontWeight.bold,
               align: TextAlign.center,
             ),
             const Gap(10),
-            const CustomText(
-              text:
-                  'يمكنك الوصول إلى جميع المواد والدروس دون أي رسوم. سنخبرك قبل انتهاء الفترة المجانية.',
+            CustomText(
+              text: body,
               color: AppColors.gray700,
               size: 14,
               align: TextAlign.center,
@@ -131,6 +216,109 @@ class _SubscriptionViewState extends State<SubscriptionView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _paid() => _status(
+    icon: Icons.workspace_premium,
+    color: AppColors.success600,
+    tint: AppColors.success50,
+    title: 'اشتراكك مفعّل',
+    body: 'يمكنك متابعة جميع الدروس في كل المواد من حيث توقفت.',
+  );
+
+  Widget _pending() => _status(
+    icon: Icons.hourglass_top,
+    color: AppColors.warning700,
+    tint: AppColors.warning50,
+    title: 'طلب اشتراكك قيد المراجعة',
+    body:
+        'استلمنا إيصال الدفع وسيتم تفعيل اشتراكك بعد التأكد منه. ستصلك رسالة عند التفعيل، وتكمل بعدها دروسك من حيث توقفت.',
+  );
+
+  Widget _plans(_Page page, Student profile) {
+    final header = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary100),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.card_giftcard_outlined,
+            color: AppColors.brandPrimary,
+          ),
+          const Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomText(
+                  text: profile.freePlanExpired
+                      ? 'انتهت الفترة المجانية'
+                      : 'أنت على الخطة المجانية',
+                  color: AppColors.gray900,
+                  size: 15,
+                  weight: FontWeight.bold,
+                ),
+                const Gap(4),
+                const CustomText(
+                  text:
+                      'الخطة المجانية: أول 15 يومًا وربع دروس كل مادة. اشترك لمتابعة باقي الدروس دون أن تفقد أي تقدم.',
+                  color: AppColors.gray700,
+                  size: 13,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        header,
+        const Gap(20),
+        const CustomText(
+          text: 'اختر باقتك',
+          color: AppColors.gray900,
+          size: 17,
+          weight: FontWeight.bold,
+        ),
+        const Gap(12),
+        if (page.plansError != null)
+          Column(
+            children: [
+              CustomText(
+                text: page.plansError!,
+                color: AppColors.error600,
+                size: 14,
+                align: TextAlign.center,
+              ),
+              const Gap(8),
+              TextButton(
+                onPressed: () => setState(() => _future = _load()),
+                child: const Text('إعادة المحاولة'),
+              ),
+            ],
+          )
+        else if (page.plans.isEmpty)
+          const CustomText(
+            text:
+                'لا توجد باقات متاحة لصفك الدراسي حاليًا. تواصل معنا للاشتراك.',
+            color: AppColors.gray600,
+            size: 14,
+            align: TextAlign.center,
+          )
+        else
+          for (final plan in page.plans) ...[
+            SubscriptionCard(plan: plan, onPressed: () => _choose(plan)),
+            const Gap(12),
+          ],
+      ],
     );
   }
 }
