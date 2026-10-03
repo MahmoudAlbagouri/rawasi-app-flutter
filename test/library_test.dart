@@ -127,13 +127,27 @@ void main() {
       expect(utf8.decode(bytes.sublist(0, 5), allowMalformed: true), '%PDF-');
       expect(bytes.length, greaterThan(2000));
 
-      // The Arabic font is what makes Arabic render instead of boxes, so
-      // assert the TTF actually got embedded rather than silently skipped.
+      // Arabic is laid out by Flutter's text engine and embedded as images —
+      // the pdf package's own shaper drops letters Tajawal has no legacy
+      // presentation-form glyph for. Only digits remain PDF text, in Tajawal.
       final raw = latin1.decode(bytes, allowInvalid: true);
+      expect(raw.contains('/Subtype /Image') || raw.contains('/Subtype/Image'),
+          isTrue,
+          reason: 'Arabic runs are expected as rendered images');
       expect(raw.contains('Tajawal'), isTrue,
-          reason: 'the Arabic TTF must be embedded or every glyph is a box');
-      expect(raw.contains('FontFile2'), isTrue,
-          reason: 'an embedded TrueType font program is expected');
+          reason: 'page numbers are set in the embedded Tajawal font');
+    });
+
+    // Regression: the pdf package mapped the isolated ي and أ to presentation
+    // forms Tajawal lacks (U+FEF1, U+FE83) and drew nothing, so "أي: الذي"
+    // printed as "أ:" and "الذ". Flutter's engine must draw those letters.
+    test('letters the old PDF shaper dropped are drawn', () async {
+      expect(await LibraryPdf.debugTextWidth('الذي'),
+          greaterThan(await LibraryPdf.debugTextWidth('الذ')),
+          reason: 'the final ي of الذي must take up space');
+      expect(await LibraryPdf.debugTextWidth('أي'),
+          greaterThan(await LibraryPdf.debugTextWidth('أ')),
+          reason: 'the ي after a non-joining أ must take up space');
     });
 
     test('scales to a long subject without falling over', () async {
@@ -144,10 +158,9 @@ void main() {
       expect(bytes.length, greaterThan(5000));
     });
 
-    // The whole point of the client-side route: without RTL the pdf package
-    // never calls arabic.convert, and the letters come out unjoined and
-    // reversed. Building the same content both ways must therefore differ.
-    test('Arabic is shaped right-to-left, not laid out as-is', () async {
+    // The document direction must reach the text layout: RTL Arabic is laid
+    // out (and aligned) differently from LTR, so the two outputs must differ.
+    test('Arabic is laid out right-to-left', () async {
       Future<int> lengthFor(pw.TextDirection d) async {
         final bytes = await LibraryPdf.build(
           subjectName: 'التفسير',
@@ -170,7 +183,7 @@ void main() {
 
       expect(latin1.decode(rtl, allowInvalid: true),
           isNot(equals(latin1.decode(ltr, allowInvalid: true))),
-          reason: 'RTL must change the emitted glyph run - otherwise no shaping ran');
+          reason: 'RTL must change the rendered text - otherwise direction was ignored');
       expect(await lengthFor(pw.TextDirection.rtl), greaterThan(0));
     });
 

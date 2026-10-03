@@ -26,7 +26,8 @@ class RegisterStep1View extends StatefulWidget {
 
 class _RegisterStep1ViewState extends State<RegisterStep1View> {
   final List<Map<String, String>> _grades = [
-    {'label': 'الصف الأول الثانوي', 'value': '1'},
+    // Al-Azhar's new البكالوريا system applies to the first year only.
+    {'label': 'الصف الأول الثانوي', 'value': '1', 'note': 'نظام البكالوريا'},
     {'label': 'الصف الثاني الثانوي', 'value': '2'},
     {'label': 'الصف الثالث الثانوي', 'value': '3'},
   ];
@@ -48,9 +49,14 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
         pageBuilder: (context, animation, secondaryAnimation) =>
             RegisterStep2View(draft: draft),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-              .chain(CurveTween(curve: Curves.easeOut));
-          return SlideTransition(position: animation.drive(tween), child: child);
+          final tween = Tween(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOut));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
         },
       ),
     );
@@ -91,44 +97,70 @@ class _RegisterStep1ViewState extends State<RegisterStep1View> {
                 weight: FontWeight.bold,
               ),
               const Gap(16),
-              Row(
-                children: _grades.map((g) {
-                  final selected = _selectedGrade == g['value'];
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedGrade = g['value']),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.brandPrimary
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
+              // IntrinsicHeight + stretch: the first card carries an extra
+              // line, and all three should still be the same height. stretch
+              // on its own would ask for infinite height inside a scroll view.
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _grades.map((g) {
+                    final selected = _selectedGrade == g['value'];
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedGrade = g['value']),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
                               color: selected
                                   ? AppColors.brandPrimary
-                                  : AppColors.gray300,
-                              width: selected ? 2 : 1,
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.brandPrimary
+                                    : AppColors.gray300,
+                                width: selected ? 2 : 1,
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            g['label']!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color:
-                                  selected ? Colors.white : AppColors.gray800,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  g['label']!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: selected
+                                        ? Colors.white
+                                        : AppColors.gray800,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                if (g['note'] != null) ...[
+                                  const Gap(4),
+                                  Text(
+                                    g['note']!,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? Colors.white70
+                                          : AppColors.brandPrimary,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
               const Gap(24),
               Container(
