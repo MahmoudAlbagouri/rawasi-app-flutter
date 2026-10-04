@@ -89,28 +89,31 @@ class _CoursesViewState extends State<CoursesView> {
       body: BrandBackdrop(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
             child: FutureBuilder<bool>(
-            future: _isSignedInFuture,
-            builder: (context, authSnapshot) {
-              if (authSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (authSnapshot.data != true) {
-                return _buildLoginRequired();
-              }
-              return FutureBuilder<Student?>(
-                future: _profileFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  // One shared gate: three hand-written branches here used to
-                  // contradict the library and home.
-                  final reason = gateFor(snapshot.data);
-                  if (reason != null) return AccountGate(reason: reason);
+              future: _isSignedInFuture,
+              builder: (context, authSnapshot) {
+                if (authSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (authSnapshot.data != true) {
+                  return _buildLoginRequired();
+                }
+                return FutureBuilder<Student?>(
+                  future: _profileFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    // One shared gate: three hand-written branches here used to
+                    // contradict the library and home.
+                    final reason = gateFor(snapshot.data);
+                    if (reason != null) return AccountGate(reason: reason);
 
-                  return _buildCoursesList();
+                    return _buildCoursesList();
                   },
                 );
               },
@@ -177,12 +180,11 @@ class _CoursesViewState extends State<CoursesView> {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                CourseLessonsView(
-                  courseId: course.id,
-                  courseName: subject.name,
-                  progress: course.progress,
-                ),
+            builder: (_) => CourseLessonsView(
+              courseId: course.id,
+              courseName: subject.name,
+              progress: course.progress,
+            ),
           ),
         );
         // Lessons were very likely completed in there, so the percentages on
@@ -223,7 +225,11 @@ class _CoursesViewState extends State<CoursesView> {
                         const Gap(6),
                         Row(
                           children: [
-                            Icon(Icons.menu_book_outlined, size: 15, color: AppColors.gray500),
+                            Icon(
+                              Icons.menu_book_outlined,
+                              size: 15,
+                              color: AppColors.gray500,
+                            ),
                             const Gap(4),
                             CustomText(
                               text: '${subject.totalLessons} درس',
@@ -231,7 +237,11 @@ class _CoursesViewState extends State<CoursesView> {
                               size: 12,
                             ),
                             const Gap(12),
-                            Icon(Icons.check_circle_outline, size: 15, color: AppColors.gray500),
+                            Icon(
+                              Icons.check_circle_outline,
+                              size: 15,
+                              color: AppColors.gray500,
+                            ),
                             const Gap(4),
                             CustomText(
                               text: 'أكملت ${subject.completedLessons}',
@@ -244,7 +254,11 @@ class _CoursesViewState extends State<CoursesView> {
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.gray400),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.gray400,
+                ),
               ],
             ),
             if (subject.hasProgress) ...[

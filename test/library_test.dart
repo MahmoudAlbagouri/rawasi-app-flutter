@@ -44,14 +44,20 @@ void main() {
 
     test('a count sent as a string still parses', () {
       expect(
-        SubjectItem.fromJson({'id': 1, 'name': 'x', 'saved_questions_count': '4'})
-            .savedQuestionsCount,
+        SubjectItem.fromJson({
+          'id': 1,
+          'name': 'x',
+          'saved_questions_count': '4',
+        }).savedQuestionsCount,
         4,
       );
     });
 
     test('a missing count is zero, not a crash', () {
-      expect(SubjectItem.fromJson({'id': 1, 'name': 'x'}).savedQuestionsCount, 0);
+      expect(
+        SubjectItem.fromJson({'id': 1, 'name': 'x'}).savedQuestionsCount,
+        0,
+      );
     });
   });
 
@@ -78,7 +84,10 @@ void main() {
     test('the question type is labelled in Arabic, never the raw enum', () {
       expect(_item(type: 'definitions').libraryable.typeLabel, 'عرّف');
       expect(_item(type: 'true_false').libraryable.typeLabel, 'صح وخطأ');
-      expect(_item(type: 'fiqh_application').libraryable.typeLabel, 'تطبيق فقهي');
+      expect(
+        _item(type: 'fiqh_application').libraryable.typeLabel,
+        'تطبيق فقهي',
+      );
     });
 
     test('an unknown or missing type falls back to a neutral label', () {
@@ -92,15 +101,18 @@ void main() {
       );
     });
 
-    test('falls back to task_title when the nested question text is missing', () {
-      final item = ContentItem.fromJson({
-        'id': 1,
-        'task_title': 'نص السؤال',
-        'libraryable': {'id': 2, 'correct_answer': 'ج'},
-      });
+    test(
+      'falls back to task_title when the nested question text is missing',
+      () {
+        final item = ContentItem.fromJson({
+          'id': 1,
+          'task_title': 'نص السؤال',
+          'libraryable': {'id': 2, 'correct_answer': 'ج'},
+        });
 
-      expect(item.questionText, 'نص السؤال');
-    });
+        expect(item.questionText, 'نص السؤال');
+      },
+    );
   });
 
   group('PDF export', () {
@@ -109,7 +121,10 @@ void main() {
 
     test('refuses to build a document with no questions', () {
       expect(
-        () => LibraryPdf.shareSubject(subjectName: 'التفسير', questions: const []),
+        () => LibraryPdf.shareSubject(
+          subjectName: 'التفسير',
+          questions: const [],
+        ),
         throwsA(isA<StateError>()),
       );
     });
@@ -119,7 +134,11 @@ void main() {
         subjectName: 'التفسير',
         questions: [
           _item(question: 'ما معنى الإحسان؟', answer: 'أن تعبد الله كأنك تراه'),
-          _item(id: 8, question: 'عرّف الصلاة', answer: 'أقوال وأفعال مفتتحة بالتكبير'),
+          _item(
+            id: 8,
+            question: 'عرّف الصلاة',
+            answer: 'أقوال وأفعال مفتتحة بالتكبير',
+          ),
         ],
       );
 
@@ -131,29 +150,44 @@ void main() {
       // the pdf package's own shaper drops letters Tajawal has no legacy
       // presentation-form glyph for. Only digits remain PDF text, in Tajawal.
       final raw = latin1.decode(bytes, allowInvalid: true);
-      expect(raw.contains('/Subtype /Image') || raw.contains('/Subtype/Image'),
-          isTrue,
-          reason: 'Arabic runs are expected as rendered images');
-      expect(raw.contains('Tajawal'), isTrue,
-          reason: 'page numbers are set in the embedded Tajawal font');
+      expect(
+        raw.contains('/Subtype /Image') || raw.contains('/Subtype/Image'),
+        isTrue,
+        reason: 'Arabic runs are expected as rendered images',
+      );
+      expect(
+        raw.contains('Tajawal'),
+        isTrue,
+        reason: 'page numbers are set in the embedded Tajawal font',
+      );
     });
 
     // Regression: the pdf package mapped the isolated ي and أ to presentation
     // forms Tajawal lacks (U+FEF1, U+FE83) and drew nothing, so "أي: الذي"
     // printed as "أ:" and "الذ". Flutter's engine must draw those letters.
     test('letters the old PDF shaper dropped are drawn', () async {
-      expect(await LibraryPdf.debugTextWidth('الذي'),
-          greaterThan(await LibraryPdf.debugTextWidth('الذ')),
-          reason: 'the final ي of الذي must take up space');
-      expect(await LibraryPdf.debugTextWidth('أي'),
-          greaterThan(await LibraryPdf.debugTextWidth('أ')),
-          reason: 'the ي after a non-joining أ must take up space');
+      expect(
+        await LibraryPdf.debugTextWidth('الذي'),
+        greaterThan(await LibraryPdf.debugTextWidth('الذ')),
+        reason: 'the final ي of الذي must take up space',
+      );
+      expect(
+        await LibraryPdf.debugTextWidth('أي'),
+        greaterThan(await LibraryPdf.debugTextWidth('أ')),
+        reason: 'the ي after a non-joining أ must take up space',
+      );
     });
 
     test('scales to a long subject without falling over', () async {
-      final many = List.generate(40, (i) => _item(id: i, question: 'سؤال رقم $i'));
+      final many = List.generate(
+        40,
+        (i) => _item(id: i, question: 'سؤال رقم $i'),
+      );
 
-      final bytes = await LibraryPdf.build(subjectName: 'الفقه', questions: many);
+      final bytes = await LibraryPdf.build(
+        subjectName: 'الفقه',
+        questions: many,
+      );
 
       expect(bytes.length, greaterThan(5000));
     });
@@ -181,14 +215,70 @@ void main() {
         direction: pw.TextDirection.ltr,
       );
 
-      expect(latin1.decode(rtl, allowInvalid: true),
-          isNot(equals(latin1.decode(ltr, allowInvalid: true))),
-          reason: 'RTL must change the rendered text - otherwise direction was ignored');
+      expect(
+        latin1.decode(rtl, allowInvalid: true),
+        isNot(equals(latin1.decode(ltr, allowInvalid: true))),
+        reason:
+            'RTL must change the rendered text - otherwise direction was ignored',
+      );
       expect(await lengthFor(pw.TextDirection.rtl), greaterThan(0));
     });
 
+    test(
+      'the answer sheet is the same questions without the answers',
+      () async {
+        final questions = [
+          _item(question: 'ما معنى الإحسان؟', answer: 'أن تعبد الله كأنك تراه'),
+          _item(
+            id: 8,
+            question: 'عرّف الصلاة',
+            answer: 'أقوال وأفعال مفتتحة بالتكبير',
+          ),
+        ];
+
+        final withAnswers = await LibraryPdf.build(
+          subjectName: 'التفسير',
+          questions: questions,
+        );
+        final sheet = await LibraryPdf.build(
+          subjectName: 'التفسير',
+          questions: questions,
+          mode: LibraryPdfMode.answerSheet,
+        );
+
+        expect(utf8.decode(sheet.sublist(0, 5), allowMalformed: true), '%PDF-');
+        expect(sheet, isNot(equals(withAnswers)));
+        // Default is unchanged: the original export, with answers.
+        expect(
+          await LibraryPdf.build(subjectName: 'التفسير', questions: questions),
+          hasLength(withAnswers.length),
+        );
+      },
+    );
+
+    test('the blank space grows with the model answer, within limits', () {
+      expect(
+        LibraryPdf.blankLinesFor(0),
+        3,
+        reason: 'never fewer than 3 lines',
+      );
+      expect(LibraryPdf.blankLinesFor(30), 3);
+      expect(
+        LibraryPdf.blankLinesFor(100),
+        greaterThan(LibraryPdf.blankLinesFor(30)),
+      );
+      expect(
+        LibraryPdf.blankLinesFor(5000),
+        12,
+        reason: 'never more than 12 lines',
+      );
+    });
+
     test('formats the export date in Arabic', () {
-      expect(LibraryPdf.formatArabicDate(DateTime(2026, 9, 24)), '24 سبتمبر 2026');
+      expect(
+        LibraryPdf.formatArabicDate(DateTime(2026, 9, 24)),
+        '24 سبتمبر 2026',
+      );
       expect(LibraryPdf.formatArabicDate(DateTime(2026, 1, 1)), '1 يناير 2026');
     });
   });

@@ -165,10 +165,7 @@ class _QuestionsViewState extends State<QuestionsView> {
         _removedThisRun--;
         _phase = _Phase.question;
       });
-      _snack(
-        e.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
+      _snack(e.toString().replaceFirst('Exception: ', ''), isError: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -200,8 +197,9 @@ class _QuestionsViewState extends State<QuestionsView> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor:
-              isError ? AppColors.error600 : AppColors.brandSecondary,
+          backgroundColor: isError
+              ? AppColors.error600
+              : AppColors.brandSecondary,
           action: action,
           duration: const Duration(seconds: 4),
         ),
@@ -249,8 +247,9 @@ class _QuestionsViewState extends State<QuestionsView> {
                 vertical: 12.0,
               ),
               child: switch (_phase) {
-                _Phase.loading =>
-                  const Center(child: CircularProgressIndicator()),
+                _Phase.loading => const Center(
+                  child: CircularProgressIndicator(),
+                ),
                 _Phase.failed => _failed(),
                 _Phase.question => _questionPage(),
                 _Phase.done => _summary(),
@@ -518,11 +517,7 @@ class _QuestionsViewState extends State<QuestionsView> {
     );
   }
 
-  Widget _card({
-    required Widget child,
-    Color? background,
-    Color? border,
-  }) {
+  Widget _card({required Widget child, Color? background, Color? border}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -614,8 +609,10 @@ class _QuestionsViewState extends State<QuestionsView> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _backToLibrary,
-                icon: const Icon(Icons.library_books_outlined,
-                    color: Colors.white),
+                icon: const Icon(
+                  Icons.library_books_outlined,
+                  color: Colors.white,
+                ),
                 label: const Text(
                   'العودة إلى المكتبة',
                   style: TextStyle(
@@ -641,8 +638,10 @@ class _QuestionsViewState extends State<QuestionsView> {
                   // Re-entry without leaving the screen. Counters reset, and
                   // nothing is re-added or re-recorded.
                   onPressed: _load,
-                  icon: const Icon(Icons.refresh,
-                      color: AppColors.brandPrimary),
+                  icon: const Icon(
+                    Icons.refresh,
+                    color: AppColors.brandPrimary,
+                  ),
                   label: const Text(
                     'مراجعتها من جديد',
                     style: TextStyle(

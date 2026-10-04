@@ -28,7 +28,11 @@ import 'package:rawasi_app_n/shared/main_button.dart';
 /// the late error this replaces.
 DateTime latestBirthDate() {
   final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+  return DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).subtract(const Duration(days: 1));
 }
 
 class RegisterStep4View extends StatefulWidget {
@@ -114,20 +118,23 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
   /// arrow or the system gesture preserves the form just as well as pressing
   /// "المتابعة" does.
   void _saveToDraft() {
-    widget.draft.save((current) => current.copyWith(
-          firstName: firstNameController.text.trim(),
-          lastName: lastNameController.text.trim(),
-          gender: _valueFor(genders, selectedGenderLabel) ?? '',
-          birthDate: selectedBirthDate == null
-              ? ''
-              : selectedBirthDate!.toIso8601String().split('T')[0],
-          // Grade 1 sends nothing, even if a stream was picked before the
-          // student went back and changed their year. AuthRepo omits a null
-          // school_branch from the payload entirely.
-          schoolBranch:
-              _needsStream ? _valueFor(branches, selectedBranchLabel) : null,
-          madhab: _valueFor(madhabs, selectedMadhabLabel) ?? '',
-        ));
+    widget.draft.save(
+      (current) => current.copyWith(
+        firstName: firstNameController.text.trim(),
+        lastName: lastNameController.text.trim(),
+        gender: _valueFor(genders, selectedGenderLabel) ?? '',
+        birthDate: selectedBirthDate == null
+            ? ''
+            : selectedBirthDate!.toIso8601String().split('T')[0],
+        // Grade 1 sends nothing, even if a stream was picked before the
+        // student went back and changed their year. AuthRepo omits a null
+        // school_branch from the payload entirely.
+        schoolBranch: _needsStream
+            ? _valueFor(branches, selectedBranchLabel)
+            : null,
+        madhab: _valueFor(madhabs, selectedMadhabLabel) ?? '',
+      ),
+    );
   }
 
   String? _validateRequired(String? value) {
@@ -142,8 +149,8 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
       _birthDateError = date == null
           ? 'الرجاء اختيار تاريخ الميلاد'
           : (date.isAfter(latestBirthDate())
-              ? 'يجب أن يكون تاريخ الميلاد قبل اليوم'
-              : null);
+                ? 'يجب أن يكون تاريخ الميلاد قبل اليوم'
+                : null);
     });
   }
 
@@ -171,9 +178,14 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
         pageBuilder: (context, animation, secondaryAnimation) =>
             RegisterStep5View(draft: widget.draft),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-              .chain(CurveTween(curve: Curves.easeOut));
-          return SlideTransition(position: animation.drive(tween), child: child);
+          final tween = Tween(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOut));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
         },
       ),
     );
@@ -200,8 +212,10 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
           appBar: const ProfileFlowAppBar(title: 'استكمال البيانات'),
           body: SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -277,20 +291,22 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
                             ),
                           ),
                           if (_needsStream) ...[
-                          const Gap(16),
-                          BuildField(
-                            // Grades 2 and 3 only — see [_needsStream].
-                            title: 'الشعبة',
-                            child: CustomDropdown<String>(
-                              hint: 'اختر الشعبة',
-                              items: branches.map((b) => b['label']!).toList(),
-                              itemAsString: (item) => item,
-                              value: selectedBranchLabel,
-                              onChanged: (value) =>
-                                  setState(() => selectedBranchLabel = value),
-                              required: true,
+                            const Gap(16),
+                            BuildField(
+                              // Grades 2 and 3 only — see [_needsStream].
+                              title: 'الشعبة',
+                              child: CustomDropdown<String>(
+                                hint: 'اختر الشعبة',
+                                items: branches
+                                    .map((b) => b['label']!)
+                                    .toList(),
+                                itemAsString: (item) => item,
+                                value: selectedBranchLabel,
+                                onChanged: (value) =>
+                                    setState(() => selectedBranchLabel = value),
+                                required: true,
+                              ),
                             ),
-                          ),
                           ],
                           const Gap(24),
                           CustomElevatedButton(
@@ -324,8 +340,8 @@ class _RegisterStep4ViewState extends State<RegisterStep4View> {
               color: isCompleted
                   ? AppColors.brandPrimary
                   : isCurrent
-                      ? AppColors.primary300
-                      : AppColors.primary100,
+                  ? AppColors.primary300
+                  : AppColors.primary100,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

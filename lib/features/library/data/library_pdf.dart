@@ -52,6 +52,16 @@ const double _blockInner = _contentWidth - 14 * 2 - 2;
 const double _questionTextWidth = _blockInner - 22 - 8; // number badge + gap
 const double _answerTextWidth = _blockInner - 10 * 2;
 
+/// The two library exports.
+enum LibraryPdfMode {
+  /// Each question with its model answer — the original export.
+  withAnswers,
+
+  /// The same questions with NO answers: a blank, ruled space under each one,
+  /// to print and solve on paper.
+  answerSheet,
+}
+
 class LibraryPdf {
   /// Thrown rather than producing a document with no questions in it.
   static const String emptyMessage = 'لا توجد أسئلة محفوظة في هذه المادة.';
@@ -72,18 +82,33 @@ class LibraryPdf {
   static Future<bool> shareSubject({
     required String subjectName,
     required List<ContentItem> questions,
+    LibraryPdfMode mode = LibraryPdfMode.withAnswers,
   }) async {
     if (questions.isEmpty) {
       throw StateError(emptyMessage);
     }
 
-    final bytes = await build(subjectName: subjectName, questions: questions);
+    final bytes = await build(
+      subjectName: subjectName,
+      questions: questions,
+      mode: mode,
+    );
 
     return Printing.sharePdf(
       bytes: bytes,
-      filename: _fileName(subjectName),
+      filename: _fileName(subjectName, mode),
     );
   }
+
+  /// Ruled lines left for the student's answer on the answer sheet: sized
+  /// from the model answer, so a long answer gets room to be written out and a
+  /// one-word one does not waste half a page. Never fewer than 3, never more
+  /// than 12.
+  @visibleForTesting
+  static int blankLinesFor(double modelAnswerHeight) =>
+      ((modelAnswerHeight / _ruleSpacing).ceil() + 1).clamp(3, 12);
+
+  static const double _ruleSpacing = 24;
 
   /// The document itself, split out so it can be built and inspected without
   /// touching the platform share sheet.
@@ -93,8 +118,11 @@ class LibraryPdf {
   static Future<Uint8List> build({
     required String subjectName,
     required List<ContentItem> questions,
+    LibraryPdfMode mode = LibraryPdfMode.withAnswers,
     @visibleForTesting pw.TextDirection direction = pw.TextDirection.rtl,
   }) async {
+    final sheet = mode == LibraryPdfMode.answerSheet;
+
     await _ensureFonts();
 
     final dir = direction == pw.TextDirection.rtl
@@ -106,7 +134,11 @@ class LibraryPdf {
     final exportedOn = formatArabicDate(DateTime.now());
     final title = await _textImage(
       [
-        _Run('أسئلتي المحفوظة\n', size: 12, color: _muted),
+        _Run(
+          sheet ? 'أسئلتي المحفوظة — ورقة حل\n' : 'أسئلتي المحفوظة\n',
+          size: 12,
+          color: _muted,
+        ),
         _Run('$subjectName\n', size: 22, color: _brand, bold: true),
         _Run(
           'عدد الأسئلة: ${questions.length}   •   تاريخ الاستخراج: $exportedOn',
@@ -117,18 +149,15 @@ class LibraryPdf {
       width: _titleTextWidth,
       direction: dir,
     );
-    final header = await _textImage(
-      [_Run(subjectName, size: 10, color: _muted)],
-      direction: dir,
-    );
-    final pageWord = await _textImage(
-      [_Run('صفحة', size: 9, color: _muted)],
-      direction: dir,
-    );
-    final ofWord = await _textImage(
-      [_Run('من', size: 9, color: _muted)],
-      direction: dir,
-    );
+    final header = await _textImage([
+      _Run(subjectName, size: 10, color: _muted),
+    ], direction: dir);
+    final pageWord = await _textImage([
+      _Run('صفحة', size: 9, color: _muted),
+    ], direction: dir);
+    final ofWord = await _textImage([
+      _Run('من', size: 9, color: _muted),
+    ], direction: dir);
 
     final blocks = <pw.Widget>[];
     for (var i = 0; i < questions.length; i++) {
@@ -153,14 +182,33 @@ class LibraryPdf {
         width: _answerTextWidth,
         direction: dir,
       );
-      final block = _questionBlock(i + 1, question, answer);
+      // On the answer sheet the model answer is only MEASURED, never printed:
+      // its height decides how much blank space to leave.
+      final lines = blankLinesFor(_imageHeight(answer));
+      // A FRESH label per question: a pdf widget keeps its laid-out position on
+      // the instance, so one instance reused under several questions on the
+      // same page puts every copy but the last in the wrong place.
+      final answerArea = sheet
+          ? _blankAnswerArea(
+              await _textImage([
+                _Run('إجابتك:', size: 9, color: _muted),
+              ], direction: dir),
+              lines,
+            )
+          : answer;
+      final answerHeight = sheet
+          ? 18 + lines * _ruleSpacing
+          : _imageHeight(answer);
+
+      final block = _questionBlock(i + 1, question, answerArea, blank: sheet);
 
       // pw.Container forwards "may split across pages" to the Column inside
       // it, so a block landing at the foot of a page was cut in two — leaving
       // an empty bordered sliver behind. Keep each question whole on one page.
       // A block taller than a page (an extremely long answer) is left free to
       // split, since the only alternative would be failing the whole export.
-      final fitsOnAPage = _imageHeight(question) + _imageHeight(answer) + 70 <
+      final fitsOnAPage =
+          _imageHeight(question) + answerHeight + 70 <
           PdfPageFormat.a4.height - 72 - 60;
       blocks.add(fitsOnAPage ? pw.Inseparable(child: block) : block);
     }
@@ -225,18 +273,38 @@ class LibraryPdf {
   static double _imageHeight(pw.Widget w) => (w as pw.Image).height ?? 0;
 
   static pw.Widget _digits(int value) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 4),
-        child: pw.Text(
-          '$value',
-          style: const pw.TextStyle(fontSize: 9, color: _muted),
-        ),
-      );
+    padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+    child: pw.Text(
+      '$value',
+      style: const pw.TextStyle(fontSize: 9, color: _muted),
+    ),
+  );
+
+  /// Ruled writing lines under "إجابتك:" for the answer sheet.
+  static pw.Widget _blankAnswerArea(pw.Widget label, int lines) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        label,
+        for (var i = 0; i < lines; i++)
+          pw.Container(
+            height: _ruleSpacing,
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   static pw.Widget _questionBlock(
     int number,
     pw.Widget question,
-    pw.Widget answer,
-  ) {
+    pw.Widget answer, {
+    bool blank = false,
+  }) {
     return pw.Container(
       width: double.infinity,
       margin: const pw.EdgeInsets.only(bottom: 14),
@@ -277,8 +345,12 @@ class LibraryPdf {
             width: double.infinity,
             padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
-              color: _tint,
+              // White on the answer sheet: it is written on with a pen.
+              color: blank ? PdfColors.white : _tint,
               borderRadius: pw.BorderRadius.circular(6),
+              border: blank
+                  ? pw.Border.all(color: PdfColors.grey300, width: 0.5)
+                  : null,
             ),
             child: answer,
           ),
@@ -288,14 +360,16 @@ class LibraryPdf {
   }
 
   static Future<void> _ensureFonts() {
-    return _fontsReady ??= (FontLoader(_family)
-          ..addFont(rootBundle.load('assets/fonts/Tajawal-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Tajawal-Bold.ttf')))
-        .load()
-        .catchError((Object e) {
-      _fontsReady = null; // let the next export retry rather than stay broken
-      throw e;
-    });
+    return _fontsReady ??=
+        (FontLoader(_family)
+              ..addFont(rootBundle.load('assets/fonts/Tajawal-Regular.ttf'))
+              ..addFont(rootBundle.load('assets/fonts/Tajawal-Bold.ttf')))
+            .load()
+            .catchError((Object e) {
+              _fontsReady =
+                  null; // let the next export retry rather than stay broken
+              throw e;
+            });
   }
 
   /// Lays [runs] out with Flutter's text engine at [width] PDF points (or at
@@ -315,9 +389,10 @@ class LibraryPdf {
     ui.Canvas(recorder)
       ..scale(_scale)
       ..drawParagraph(paragraph, ui.Offset.zero);
-    final image = await recorder
-        .endRecording()
-        .toImage((w * _scale).ceil(), (h * _scale).ceil());
+    final image = await recorder.endRecording().toImage(
+      (w * _scale).ceil(),
+      (h * _scale).ceil(),
+    );
     final png = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
 
@@ -333,22 +408,26 @@ class LibraryPdf {
     ui.TextDirection direction,
     double width,
   ) {
-    final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-      textDirection: direction,
-      textAlign: ui.TextAlign.start,
-      fontFamily: _family,
-    ));
+    final builder = ui.ParagraphBuilder(
+      ui.ParagraphStyle(
+        textDirection: direction,
+        textAlign: ui.TextAlign.start,
+        fontFamily: _family,
+      ),
+    );
     for (final run in runs) {
       builder
-        ..pushStyle(ui.TextStyle(
-          color: ui.Color(run.color.toInt()),
-          fontFamily: _family,
-          fontSize: run.size,
-          fontWeight: run.bold ? ui.FontWeight.w700 : ui.FontWeight.w400,
-          // Room above and below each line for tashkeel, so marks on
-          // Quranic text are never clipped by the image edge.
-          height: 1.55,
-        ))
+        ..pushStyle(
+          ui.TextStyle(
+            color: ui.Color(run.color.toInt()),
+            fontFamily: _family,
+            fontSize: run.size,
+            fontWeight: run.bold ? ui.FontWeight.w700 : ui.FontWeight.w400,
+            // Room above and below each line for tashkeel, so marks on
+            // Quranic text are never clipped by the image edge.
+            height: 1.55,
+          ),
+        )
         ..addText(run.text)
         ..pop();
     }
@@ -367,19 +446,30 @@ class LibraryPdf {
     ).maxIntrinsicWidth;
   }
 
-  static String _fileName(String subjectName) {
+  static String _fileName(String subjectName, LibraryPdfMode mode) {
     // Keep it readable but filesystem-safe on every platform.
     final safe = subjectName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
     final now = DateTime.now();
     final stamp = '${now.year}-${_two(now.month)}-${_two(now.day)}';
-    return 'مكتبتي-$safe-$stamp.pdf';
+    final kind = mode == LibraryPdfMode.answerSheet ? '-ورقة-حل' : '';
+    return 'مكتبتي-$safe$kind-$stamp.pdf';
   }
 
   static String _two(int v) => v.toString().padLeft(2, '0');
 
   static const List<String> _months = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
   ];
 
   /// e.g. "24 سبتمبر 2026". Written by hand rather than pulling in intl for
@@ -395,6 +485,10 @@ class _Run {
   final PdfColor color;
   final bool bold;
 
-  const _Run(this.text,
-      {required this.size, required this.color, this.bold = false});
+  const _Run(
+    this.text, {
+    required this.size,
+    required this.color,
+    this.bold = false,
+  });
 }

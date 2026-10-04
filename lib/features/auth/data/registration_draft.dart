@@ -29,7 +29,7 @@ class RegistrationDraft {
   RegistrationData data;
 
   RegistrationDraft([RegistrationData? initial])
-      : data = initial ?? const RegistrationData();
+    : data = initial ?? const RegistrationData();
 
   /// Merge this step's current values into the draft.
   ///

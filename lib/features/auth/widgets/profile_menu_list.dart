@@ -126,7 +126,9 @@ class ProfileMenuList extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const StudentDetailsView()),
+              MaterialPageRoute(
+                builder: (context) => const StudentDetailsView(),
+              ),
             );
           },
         ),

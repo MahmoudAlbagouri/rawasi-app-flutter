@@ -122,8 +122,7 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              RegisterStep4View(draft: widget.draft),
+          builder: (context) => RegisterStep4View(draft: widget.draft),
         ),
       );
     } catch (e) {
@@ -143,13 +142,13 @@ class _RegisterStep3ViewState extends State<RegisterStep3View> {
       isBusy: _isLoading,
       child: Scaffold(
         backgroundColor: AppColors.gray50,
-        appBar: ProfileFlowAppBar(
-            title: 'تأكيد الحساب',
-            isBusy: _isLoading,
-          ),
+        appBar: ProfileFlowAppBar(title: 'تأكيد الحساب', isBusy: _isLoading),
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

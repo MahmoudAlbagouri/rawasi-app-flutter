@@ -89,8 +89,8 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
         final message = response is ApiError
             ? response.message
             : response is Map && response['message'] != null
-                ? response['message']
-                : 'حدث خطأ أثناء التحديث';
+            ? response['message']
+            : 'حدث خطأ أثناء التحديث';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),

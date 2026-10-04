@@ -46,6 +46,104 @@ class SubscriptionView extends StatefulWidget {
     return result == true;
   }
 
+  /// Why the free plan stopped this student, in one sentence each. Kept here
+  /// so the lesson list, the lesson flow and home all say the same thing.
+  @visibleForTesting
+  static ({String title, String body}) paywallCopy({
+    required bool trialEnded,
+    required bool paymentPending,
+  }) {
+    if (paymentPending) {
+      return (
+        title: 'طلب اشتراكك قيد المراجعة',
+        body: 'استلمنا إيصال الدفع، وسيُفتح باقي الدروس فور تأكيده.',
+      );
+    }
+    if (trialEnded) {
+      return (
+        title: 'انتهت الفترة المجانية',
+        body: 'انتهت مدة الخطة المجانية (15 يومًا). اشترك لمتابعة باقي الدروس.',
+      );
+    }
+    return (
+      title: 'انتهى الحد المجاني لهذه المادة',
+      body:
+          'لا يمكن أن يتجاوز المحتوى في الخطة المجانية 25% من دروس هذه المادة. اشترك لمتابعة باقي الدروس.',
+    );
+  }
+
+  /// The free-plan stop: an alert saying WHY, then straight to the plans.
+  ///
+  /// Not dismissible by tapping outside — the student acknowledges it and is
+  /// taken to the subscriptions page, as the paywall requires. They can still
+  /// come back from there to finished lessons, which stay open.
+  /// Completes with true when a receipt was uploaded.
+  static Future<bool> showPaywall(
+    BuildContext context, {
+    required bool trialEnded,
+    bool paymentPending = false,
+  }) async {
+    final copy = paywallCopy(
+      trialEnded: trialEnded,
+      paymentPending: paymentPending,
+    );
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          paymentPending ? Icons.hourglass_top : Icons.workspace_premium,
+          color: AppColors.warning700,
+          size: 36,
+        ),
+        title: Text(copy.title, textAlign: TextAlign.center),
+        content: Text(copy.body, textAlign: TextAlign.center),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandPrimary,
+            ),
+            child: Text(paymentPending ? 'متابعة الطلب' : 'عرض الباقات'),
+          ),
+        ],
+      ),
+    );
+
+    if (!context.mounted) return false;
+    return open(context);
+  }
+
+  /// Whether the free period has ended for a student who has neither paid nor
+  /// sent a receipt yet — the only case the app forces to the plans page.
+  @visibleForTesting
+  static bool shouldForceRedirect(Student? profile) =>
+      profile != null &&
+      profile.freePlanExpired &&
+      !profile.hasPaidSubscription &&
+      !profile.paymentPending;
+
+  /// The 15-day redirect from home fires once per app session, not on every
+  /// rebuild or tab switch — courses still redirect each time one is opened.
+  static bool _expiryRedirectShown = false;
+
+  /// Forces the subscriptions page when the free period has ended. Home calls
+  /// this once data is loaded; it is a no-op for paid or pending students.
+  static Future<void> redirectIfFreePlanExpired(
+    BuildContext context,
+    Student? profile, {
+    bool oncePerSession = false,
+  }) async {
+    if (!shouldForceRedirect(profile)) return;
+    if (oncePerSession) {
+      if (_expiryRedirectShown) return;
+      _expiryRedirectShown = true;
+    }
+    await showPaywall(context, trialEnded: true);
+  }
+
   /// Only plans that cost something can be bought; the seeded free plan is
   /// what every student already has.
   @visibleForTesting
@@ -115,6 +213,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
           planName: plan.name,
           planPrice: plan.price,
           hasDiscount: plan.hasDiscount,
+          paymentAccounts: plan.paymentAccounts,
         ),
       ),
     );

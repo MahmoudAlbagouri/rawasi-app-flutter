@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,12 +21,16 @@ class UploadCertificateView extends StatefulWidget {
   final double planPrice;
   final bool hasDiscount; // 👈 إضافة الخاصية الجديدة
 
+  /// Where to transfer the money — from the dashboard, per package.
+  final List<PaymentAccount> paymentAccounts;
+
   const UploadCertificateView({
     super.key,
     required this.planId,
     required this.planName,
     required this.planPrice,
     required this.hasDiscount, // 👈 تمرير الخاصية الجديدة
+    this.paymentAccounts = const [],
   });
 
   @override
@@ -54,10 +59,15 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
     super.dispose();
   }
 
-  // 👇 دالة نسخ رقم المحفظة
-  void _copyPhoneNumber() {
-    final phone = '01027252071';
-    Clipboard.setData(ClipboardData(text: phone)).then((_) {
+  /// The accounts to show: the package's own, or the legacy number when an
+  /// older backend sent none.
+  List<PaymentAccount> get _accounts => widget.paymentAccounts.isNotEmpty
+      ? widget.paymentAccounts
+      : PaymentAccount.legacy;
+
+  // 👇 نسخ رقم الحساب
+  void _copyAccount(String value) {
+    Clipboard.setData(ClipboardData(text: value)).then((_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -65,7 +75,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                const Text('تم نسخ رقم المحفظة بنجاح!'),
+                const Text('تم نسخ الرقم بنجاح!'),
               ],
             ),
             backgroundColor: AppColors.success600,
@@ -355,8 +365,13 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                 ),
                 const Gap(24),
 
-                // 👇 قسم رقم المحفظة المميز (جديد)
-                _buildWalletNumberSection(),
+                // The amount, then where to send it — payment is outside the app.
+                _buildAmountToTransfer(),
+                const Gap(12),
+                for (final account in _accounts) ...[
+                  _buildWalletNumberSection(account),
+                  const Gap(10),
+                ],
 
                 const Gap(20),
 
@@ -471,8 +486,45 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
     );
   }
 
-  // 👇 ويدجت قسم رقم المحفظة المميز (جديد)
-  Widget _buildWalletNumberSection() {
+  Widget _buildAmountToTransfer() {
+    final amount = (_discountedPrice ?? widget.planPrice).toInt();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.success50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.success500.withOpacity(0.5)),
+      ),
+      child: Column(
+        children: [
+          CustomText(
+            text: 'المبلغ المطلوب تحويله',
+            color: AppColors.gray700,
+            size: 14,
+          ),
+          const Gap(4),
+          CustomText(
+            text: '$amount ج.م',
+            color: AppColors.success700,
+            size: 26,
+            weight: FontWeight.bold,
+          ),
+          const Gap(4),
+          CustomText(
+            text: 'حوّل المبلغ على أحد الحسابات التالية ثم ارفع صورة الإيصال',
+            color: AppColors.gray600,
+            size: 12,
+            align: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 👇 بطاقة حساب دفع واحد (من لوحة التحكم)
+  Widget _buildWalletNumberSection(PaymentAccount account) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -492,7 +544,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _copyPhoneNumber,
+          onTap: () => _copyAccount(account.value),
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -520,7 +572,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'رقم محفظة الدفع',
+                        account.label.isEmpty ? 'رقم الحساب' : account.label,
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
@@ -529,7 +581,8 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '01027252071',
+                        account.value,
+                        textDirection: TextDirection.ltr,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,

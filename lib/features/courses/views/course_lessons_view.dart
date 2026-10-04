@@ -41,9 +41,12 @@ class CourseLessonsView extends StatefulWidget {
 class _CourseLessonsViewState extends State<CourseLessonsView> {
   late Future<List<Lesson>> _lessonsFuture;
 
+  bool _paymentStateLoaded = false;
+
   /// A receipt is waiting for an admin: the paywall then says "under review"
   /// instead of asking the student to pay a second time.
   bool _paymentPending = false;
+  bool _freePlanExpired = false;
 
   @override
   void initState() {
@@ -61,7 +64,19 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
   Future<void> _loadPaymentState() async {
     try {
       final profile = await ProfileRepository().fetchProfile();
-      if (mounted) setState(() => _paymentPending = profile.paymentPending);
+      if (!mounted) return;
+      final firstLoad = !_paymentStateLoaded;
+      _paymentStateLoaded = true;
+      setState(() {
+        _paymentPending = profile.paymentPending;
+        _freePlanExpired = profile.freePlanExpired;
+      });
+      // Mandatory redirect: opening a course after the 15 days are over goes
+      // to the subscriptions page. Only on opening, not after every refresh.
+      if (firstLoad) {
+        await SubscriptionView.redirectIfFreePlanExpired(context, profile);
+        if (mounted) _refresh();
+      }
     } catch (_) {
       // Only changes a caption; the lock itself comes from the server.
     }
@@ -72,6 +87,19 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
   /// server decides what is open, so nothing is assumed on the device.
   Future<void> _openSubscription() async {
     await SubscriptionView.open(context);
+    if (!mounted) return;
+    _refresh();
+    await _loadPaymentState();
+  }
+
+  /// Tapping a paywalled lesson: say why (25% of this subject, or the 15
+  /// days), then go to the plans.
+  Future<void> _onPaywallTap(Lesson lesson) async {
+    await SubscriptionView.showPaywall(
+      context,
+      trialEnded: lesson.isTrialEndedPaywall || _freePlanExpired,
+      paymentPending: _paymentPending,
+    );
     if (!mounted) return;
     _refresh();
     await _loadPaymentState();
@@ -247,7 +275,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
           // The paywall is the one lock the student can act on: it leads to
           // the plans. An ordinary sequence lock stays inert.
           : lesson.requiresPayment
-          ? _openSubscription
+          ? () => _onPaywallTap(lesson)
           : null,
       child: Container(
         padding: const EdgeInsets.all(16),

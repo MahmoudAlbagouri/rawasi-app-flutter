@@ -54,11 +54,13 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
   }
 
   void _saveToDraft() {
-    widget.draft.save((current) => current.copyWith(
-          phone1: phoneController.text.trim(),
-          password: passwordController.text.trim(),
-          confirmPassword: confirmPasswordController.text.trim(),
-        ));
+    widget.draft.save(
+      (current) => current.copyWith(
+        phone1: phoneController.text.trim(),
+        password: passwordController.text.trim(),
+        confirmPassword: confirmPasswordController.text.trim(),
+      ),
+    );
   }
 
   String? _validatePhone(String? value) {
@@ -99,7 +101,9 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
       if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => RegisterStep3View(draft: widget.draft)),
+        MaterialPageRoute(
+          builder: (_) => RegisterStep3View(draft: widget.draft),
+        ),
       );
     } catch (e) {
       final msg = e is ApiError ? e.message : 'حدث خطأ غير متوقع';
@@ -121,10 +125,7 @@ class _RegisterStep2ViewState extends State<RegisterStep2View> {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
           backgroundColor: AppColors.gray50,
-          appBar: ProfileFlowAppBar(
-            title: 'إنشاء الحساب',
-            isBusy: _isLoading,
-          ),
+          appBar: ProfileFlowAppBar(title: 'إنشاء الحساب', isBusy: _isLoading),
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(

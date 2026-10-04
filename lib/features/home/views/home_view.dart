@@ -14,6 +14,7 @@
 // screens could never have agreed.
 
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
@@ -84,6 +85,23 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _dataFuture = HomeRepo().load();
     _resolveSession();
+    _redirectIfFreePlanExpired();
+  }
+
+  /// Mandatory redirect when the 15-day free period is over: opening the app
+  /// lands on the subscriptions page once per session.
+  Future<void> _redirectIfFreePlanExpired() async {
+    try {
+      final data = await _dataFuture;
+      if (!mounted) return;
+      await SubscriptionView.redirectIfFreePlanExpired(
+        context,
+        data.profile,
+        oncePerSession: true,
+      );
+    } catch (_) {
+      // Home renders its own error; the redirect is best effort.
+    }
   }
 
   Future<void> _resolveSession() async {
@@ -121,25 +139,27 @@ class _HomeViewState extends State<HomeView> {
   Future<void> _openPendingStep(Student profile) async {
     if (profile.isProfileCompleted) return;
 
-    await _open(RegisterStep4View(
-      draft: RegistrationDraft(
-        RegistrationData(
-          academicYear: profile.academicYear,
-          phone1: profile.phone1,
+    await _open(
+      RegisterStep4View(
+        draft: RegistrationDraft(
+          RegistrationData(
+            academicYear: profile.academicYear,
+            phone1: profile.phone1,
+          ),
         ),
       ),
-    ));
+    );
   }
 
   /// Straight into a subject's lessons — the whole point of the grid is fewer
   /// taps between opening the app and studying.
   Future<void> _openSubject(Course course) => _open(
-        CourseLessonsView(
-          courseId: course.id,
-          courseName: course.name,
-          progress: course.progress,
-        ),
-      );
+    CourseLessonsView(
+      courseId: course.id,
+      courseName: course.name,
+      progress: course.progress,
+    ),
+  );
 
   Future<void> _openCourses(Student? profile) async {
     if (profile == null) return _open(const LoginView());
@@ -169,7 +189,7 @@ class _HomeViewState extends State<HomeView> {
               // decides whether this is a guest at all.
               final loading =
                   snapshot.connectionState == ConnectionState.waiting ||
-                      data.isLoading;
+                  data.isLoading;
 
               return RefreshIndicator(
                 onRefresh: () async {
@@ -270,7 +290,9 @@ class _HomeViewState extends State<HomeView> {
       if (!_introDismissed) ...[
         _animated(
           420,
-          IntroVideoCard(onDismiss: () => setState(() => _introDismissed = true)),
+          IntroVideoCard(
+            onDismiss: () => setState(() => _introDismissed = true),
+          ),
         ),
         const Gap(8),
       ],
@@ -287,10 +309,7 @@ class _HomeViewState extends State<HomeView> {
 
     if (trial == null || !trial.isVisible) return const [];
 
-    return [
-      _animated(260, TrialCard(trial: trial)),
-      const Gap(22),
-    ];
+    return [_animated(260, TrialCard(trial: trial)), const Gap(22)];
   }
 
   /// The study reminder, from the SAME widget إحصائياتي uses.
@@ -302,7 +321,8 @@ class _HomeViewState extends State<HomeView> {
   List<Widget> _reminderSection(HomeData data) {
     final stats = data.stats;
 
-    if (stats == null || !StudyReminderCard.shouldShowOnHome(stats.inactivity)) {
+    if (stats == null ||
+        !StudyReminderCard.shouldShowOnHome(stats.inactivity)) {
       return const [];
     }
 
@@ -423,9 +443,8 @@ class _HomeViewState extends State<HomeView> {
               )
             : LibraryPreview(
                 subjects: library,
-                onOpenSubject: (SubjectItem s) => _open(
-                  QuestionsView(subjectId: s.id, subjectName: s.name),
-                ),
+                onOpenSubject: (SubjectItem s) =>
+                    _open(QuestionsView(subjectId: s.id, subjectName: s.name)),
               ),
       ),
       const Gap(22),
@@ -433,9 +452,9 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _animated(int delayMs, Widget child) => AnimatedItem(
-        delay: Duration(milliseconds: delayMs),
-        child: child,
-      );
+    delay: Duration(milliseconds: delayMs),
+    child: child,
+  );
 }
 
 // -----------------------------------------------------------------------------

@@ -71,6 +71,13 @@ class _LessonFlowViewState extends State<LessonFlowView>
   List<Question> _pass = [];
   int _index = 0;
   bool _answerShown = false;
+
+  /// The student's own attempt, typed on the question page before revealing
+  /// the model answer. Entirely OPTIONAL: an empty box reveals and grades
+  /// exactly as before. Kept for this sitting only, keyed by question, so the
+  /// review pass can show it again — never sent to the server or stored.
+  final TextEditingController _myAnswerInput = TextEditingController();
+  final Map<int, String> _myAnswers = {};
   bool _busy = false;
 
   final List<Question> _reviewQueue = [];
@@ -124,7 +131,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
   /// Plans -> receipt -> back to the lesson list, which re-reads from the
   /// server what is open now. Nothing is unlocked on the device.
   Future<void> _openSubscription() async {
-    await SubscriptionView.open(context);
+    await SubscriptionView.showPaywall(context, trialEnded: _trialEnded);
     if (mounted) Navigator.pop(context);
   }
 
@@ -142,7 +149,23 @@ class _LessonFlowViewState extends State<LessonFlowView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _watch.stop();
+    _myAnswerInput.dispose();
     super.dispose();
+  }
+
+  /// "إظهار الإجابة": keep whatever the student wrote (if anything) and move
+  /// to the answer page.
+  void _revealAnswer() {
+    final mine = _myAnswerInput.text.trim();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      if (mine.isNotEmpty) {
+        _myAnswers[_current.questionId] = mine;
+      } else {
+        _myAnswers.remove(_current.questionId);
+      }
+      _answerShown = true;
+    });
   }
 
   /// Stop counting the moment the app leaves the foreground, and pick up again
@@ -276,6 +299,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
         // The review pass shows the answer with the question; the first pass
         // hides it again for the next question.
         _answerShown = _isReviewPass;
+        _myAnswerInput.clear();
       });
       _startTimingQuestion();
       return;
@@ -514,6 +538,22 @@ class _LessonFlowViewState extends State<LessonFlowView>
                 ),
                 const Gap(8),
                 _panel(q.question),
+                // Page 1: an optional box for the student's own answer,
+                // between the question and "إظهار الإجابة".
+                if (!_answerShown) ...[const Gap(20), _myAnswerField()],
+                // Page 2: what they wrote, between the question and the model
+                // answer — only when they wrote something.
+                if (_answerShown && _myAnswers[q.questionId] != null) ...[
+                  const Gap(20),
+                  CustomText(
+                    text: 'إجابتك:',
+                    color: AppColors.gray900,
+                    size: 15,
+                    weight: FontWeight.bold,
+                  ),
+                  const Gap(8),
+                  _myAnswerPanel(_myAnswers[q.questionId]!),
+                ],
                 if (_answerShown) ...[
                   const Gap(20),
                   CustomText(
@@ -536,6 +576,66 @@ class _LessonFlowViewState extends State<LessonFlowView>
         ),
         _questionActions(),
       ],
+    );
+  }
+
+  Widget _myAnswerField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            CustomText(
+              text: 'إجابتك:',
+              color: AppColors.gray900,
+              size: 15,
+              weight: FontWeight.bold,
+            ),
+            const Gap(6),
+            CustomText(text: '(اختياري)', color: AppColors.gray500, size: 13),
+          ],
+        ),
+        const Gap(8),
+        TextField(
+          controller: _myAnswerInput,
+          minLines: 3,
+          maxLines: 8,
+          textInputAction: TextInputAction.newline,
+          keyboardType: TextInputType.multiline,
+          decoration: InputDecoration(
+            hintText: 'اكتب إجابتك هنا ثم قارنها بالإجابة النموذجية…',
+            hintStyle: const TextStyle(color: AppColors.gray400, fontSize: 14),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.all(14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.gray200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.gray200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.brandPrimary),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _myAnswerPanel(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary100),
+      ),
+      child: CustomText(text: text, color: AppColors.gray800, size: 15),
     );
   }
 
@@ -573,7 +673,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => setState(() => _answerShown = true),
+                onPressed: _revealAnswer,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.brandPrimary,
                   shape: RoundedRectangleBorder(

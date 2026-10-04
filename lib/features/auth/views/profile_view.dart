@@ -67,168 +67,170 @@ class _ProfileViewState extends State<ProfileView> {
       backgroundColor: AppColors.white,
       body: BrandBackdrop(
         child: FutureBuilder<bool>(
-        future: isUserSignedIn(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          future: isUserSignedIn(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final isSignedIn = snapshot.data ?? false;
+            final isSignedIn = snapshot.data ?? false;
 
-          if (isSignedIn) {
-            // جلب بيانات الملف الشخصي
-            return FutureBuilder<Student?>(
-              future: _fetchProfile(),
-              builder: (context, profileSnapshot) {
-                if (profileSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            if (isSignedIn) {
+              // جلب بيانات الملف الشخصي
+              return FutureBuilder<Student?>(
+                future: _fetchProfile(),
+                builder: (context, profileSnapshot) {
+                  if (profileSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                final profile = profileSnapshot.data;
+                  final profile = profileSnapshot.data;
 
-                final fullName = profile != null ? profile.fullName : 'مستخدم';
-                final username = profile?.phone1 != null
-                    ? '@${profile!.phone1}'
-                    : '@7657657'; // fallback مؤقت
-                final initials = _getInitials(
-                  profile?.firstName,
-                  profile?.lastName,
-                );
+                  final fullName = profile != null
+                      ? profile.fullName
+                      : 'مستخدم';
+                  final username = profile?.phone1 != null
+                      ? '@${profile!.phone1}'
+                      : '@7657657'; // fallback مؤقت
+                  final initials = _getInitials(
+                    profile?.firstName,
+                    profile?.lastName,
+                  );
 
-                return SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 24.0,
-                    ),
-                    child: Column(
-                      children: [
-                        UserProfileHeader(
-                          initials: initials,
-                          fullName: fullName,
-                          username: username,
-                        ),
-                        Gap(28),
-                        Expanded(
-                          child: ProfileMenuList(
-                            onLogout: () => _logout(context),
+                  return SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 24.0,
+                      ),
+                      child: Column(
+                        children: [
+                          UserProfileHeader(
+                            initials: initials,
+                            fullName: fullName,
+                            username: username,
                           ),
-                        ),
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.brandPrimary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.brandPrimary.withOpacity(
-                                    0.3,
-                                  ),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                          Gap(28),
+                          Expanded(
+                            child: ProfileMenuList(
+                              onLogout: () => _logout(context),
                             ),
-                            child: IconButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ContactView(),
+                          ),
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.brandPrimary,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.brandPrimary.withOpacity(
+                                      0.3,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
-                                );
-                              },
-                              icon: const Icon(
-                                Icons.question_mark,
-                                color: Colors.white,
-                                size: 24,
+                                ],
+                              ),
+                              child: IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ContactView(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.question_mark,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                  );
+                },
+              );
+            } else {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 24.0,
                   ),
-                );
-              },
-            );
-          } else {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 24.0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const UserProfileHeader(
-                      initials: "ح",
-                      fullName: "حسابي",
-                      username: "يجب عليك التسجيل أولًا",
-                    ),
-                    Gap(24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginView(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text(
-                          'تسجيل الدخول',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const UserProfileHeader(
+                        initials: "ح",
+                        fullName: "حسابي",
+                        username: "يجب عليك التسجيل أولًا",
                       ),
-                    ),
-                    Gap(12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterStep1View(),
+                      Gap(24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginView(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.brandPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.gray300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text(
-                          'إنشاء حساب جديد',
-                          style: TextStyle(
-                            color: AppColors.gray800,
-                            fontSize: 16,
+                          child: const Text(
+                            'تسجيل الدخول',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ),
                       ),
-                    ),
-                    Gap(24),
-                  ],
+                      Gap(12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterStep1View(),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.gray300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'إنشاء حساب جديد',
+                            style: TextStyle(
+                              color: AppColors.gray800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Gap(24),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          }
-        },
+              );
+            }
+          },
         ),
       ),
       bottomNavigationBar: const CustomBottomNavBar(current: NavTab.account),

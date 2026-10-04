@@ -27,7 +27,8 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
     _future = ProfileRepository().fetchProfile();
   }
 
-  void _reload() => setState(() => _future = ProfileRepository().fetchProfile());
+  void _reload() =>
+      setState(() => _future = ProfileRepository().fetchProfile());
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +75,10 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
                     _row('النوع', _gender(s.gender)),
                     _row('تاريخ الميلاد', s.birthDate),
                     _row('رقم الهاتف', s.phone1),
-                    _row('واتساب على الرقم الأساسي', s.isWhatsapp ? 'نعم' : 'لا'),
+                    _row(
+                      'واتساب على الرقم الأساسي',
+                      s.isWhatsapp ? 'نعم' : 'لا',
+                    ),
                     _row('رقم هاتف إضافي', s.phone2),
                     _row('البريد الإلكتروني', s.email),
                   ]),
@@ -86,16 +90,28 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
                     _row('المعهد', s.instituteName),
                     _row('المحافظة', s.governorate),
                     _row('المدينة', s.city),
-                    _row('الأجزاء المحفوظة من القرآن',
-                        s.quranLevel == null ? null : '${s.quranLevel} جزء'),
+                    _row(
+                      'الأجزاء المحفوظة من القرآن',
+                      s.quranLevel == null ? null : '${s.quranLevel} جزء',
+                    ),
                   ]),
                   _section('الاشتراك', Icons.verified_user_outlined, [
-                    _row('حالة الحساب', s.isActive ? 'مفعّل' : 'غير مفعّل',
-                        valueColor: s.isActive ? AppColors.success700 : AppColors.error600),
-                    _row('استكمال الملف الشخصي', s.isProfileCompleted ? 'مكتمل' : 'غير مكتمل'),
+                    _row(
+                      'حالة الحساب',
+                      s.isActive ? 'مفعّل' : 'غير مفعّل',
+                      valueColor: s.isActive
+                          ? AppColors.success700
+                          : AppColors.error600,
+                    ),
+                    _row(
+                      'استكمال الملف الشخصي',
+                      s.isProfileCompleted ? 'مكتمل' : 'غير مكتمل',
+                    ),
                     _row('تاريخ التفعيل', _date(s.activeAt)),
-                    _row('مدة الاشتراك',
-                        s.availableDays > 0 ? '${s.availableDays} يوم' : null),
+                    _row(
+                      'مدة الاشتراك',
+                      s.availableDays > 0 ? '${s.availableDays} يوم' : null,
+                    ),
                     _row('نسبة الإنجاز', '${_trim(s.progress)}%'),
                   ]),
                   _section('ولي الأمر', Icons.family_restroom_outlined, [
@@ -103,7 +119,8 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
                     _row('صلة القرابة', s.supervisor1Relation),
                     _row('رقم الهاتف', s.supervisor1Phone),
                   ]),
-                  if (s.supervisor2Name != null && s.supervisor2Name!.isNotEmpty)
+                  if (s.supervisor2Name != null &&
+                      s.supervisor2Name!.isNotEmpty)
                     _section('ولي أمر ثانٍ', Icons.family_restroom_outlined, [
                       _row('الاسم', s.supervisor2Name),
                       _row('صلة القرابة', s.supervisor2Relation),
@@ -170,7 +187,8 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
                 ),
                 const Gap(4),
                 CustomText(
-                  text: '${_grade(s.academicYear)} · ${_madhab(s.madhab) ?? '—'}',
+                  text:
+                      '${_grade(s.academicYear)} · ${_madhab(s.madhab) ?? '—'}',
                   color: Colors.white.withOpacity(0.85),
                   size: 13,
                 ),
@@ -271,9 +289,15 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
               onPressed: _reload,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
               ),
-              child: const Text('إعادة المحاولة', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -286,37 +310,37 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
   // ---------------------------------------------------------------------------
 
   String _grade(String year) => switch (year) {
-        '1' => 'الصف الأول الثانوي',
-        '2' => 'الصف الثاني الثانوي',
-        '3' => 'الصف الثالث الثانوي',
-        _ => year.isEmpty ? '—' : year,
-      };
+    '1' => 'الصف الأول الثانوي',
+    '2' => 'الصف الثاني الثانوي',
+    '3' => 'الصف الثالث الثانوي',
+    _ => year.isEmpty ? '—' : year,
+  };
 
   String? _term(String? term) => switch (term) {
-        '1' => 'الفصل الأول',
-        '2' => 'الفصل الثاني',
-        _ => null,
-      };
+    '1' => 'الفصل الأول',
+    '2' => 'الفصل الثاني',
+    _ => null,
+  };
 
   String? _madhab(String? m) => switch (m) {
-        'hanafi' => 'حنفي',
-        'maliki' => 'مالكي',
-        'shafii' => 'شافعي',
-        'hanbali' => 'حنبلي',
-        _ => null,
-      };
+    'hanafi' => 'حنفي',
+    'maliki' => 'مالكي',
+    'shafii' => 'شافعي',
+    'hanbali' => 'حنبلي',
+    _ => null,
+  };
 
   String? _gender(String? g) => switch (g) {
-        'male' => 'ذكر',
-        'female' => 'أنثى',
-        _ => null,
-      };
+    'male' => 'ذكر',
+    'female' => 'أنثى',
+    _ => null,
+  };
 
   String? _branch(String? b) => switch (b) {
-        'science' => 'علمي',
-        'literature' => 'أدبي',
-        _ => null,
-      };
+    'science' => 'علمي',
+    'literature' => 'أدبي',
+    _ => null,
+  };
 
   /// "2026-06-01T10:00:00.000000Z" → "2026-06-01".
   String? _date(String? iso) {

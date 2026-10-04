@@ -46,8 +46,9 @@ class ContentItem {
 
   /// Prefers the nested payload and falls back to the flattened field, so a
   /// row still renders if one side of the response is missing.
-  String get questionText =>
-      (libraryable.question?.isNotEmpty ?? false) ? libraryable.question! : taskTitle;
+  String get questionText => (libraryable.question?.isNotEmpty ?? false)
+      ? libraryable.question!
+      : taskTitle;
 
   String get answerText => libraryable.correctAnswer ?? '';
 }

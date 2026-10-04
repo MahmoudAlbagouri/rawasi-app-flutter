@@ -11,7 +11,10 @@ class LibraryRepo {
   final ApiServices _apiServices = ApiServices();
 
   // إضافة سؤال إلى المكتبة
-  Future<void> addToLibrary({required int courseId, required int questionId}) async {
+  Future<void> addToLibrary({
+    required int courseId,
+    required int questionId,
+  }) async {
     final isSignedIn = await isUserSignedIn();
     if (!isSignedIn) {
       throw Exception('المستخدم غير مسجل الدخول');
@@ -36,7 +39,9 @@ class LibraryRepo {
 
     if (result is Map<String, dynamic>) {
       if (result['success'] == true) return;
-      throw Exception(result['message'] as String? ?? 'فشل الإضافة إلى المكتبة');
+      throw Exception(
+        result['message'] as String? ?? 'فشل الإضافة إلى المكتبة',
+      );
     } else if (result is String) {
       throw Exception(result);
     }

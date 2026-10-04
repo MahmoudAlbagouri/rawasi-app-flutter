@@ -52,10 +52,8 @@ class _SubjectsViewState extends State<SubjectsView> {
     final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => QuestionsView(
-          subjectId: subject.id,
-          subjectName: subject.name,
-        ),
+        builder: (_) =>
+            QuestionsView(subjectId: subject.id, subjectName: subject.name),
       ),
     );
     if (changed == true) _refreshSubjects();
@@ -65,13 +63,63 @@ class _SubjectsViewState extends State<SubjectsView> {
   ///
   /// The questions are fetched here rather than cached from the list, so the
   /// export always reflects what is actually saved right now.
-  Future<void> _exportPdf(SubjectItem subject) async {
+  /// Two exports: with model answers, or a blank answer sheet to solve on
+  /// paper. Asked first, so one button covers both.
+  Future<void> _chooseExport(SubjectItem subject) async {
+    final mode = await showModalBottomSheet<LibraryPdfMode>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CustomText(
+                text: 'استخراج PDF — ${subject.name}',
+                color: AppColors.gray900,
+                size: 16,
+                weight: FontWeight.bold,
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(
+                  Icons.fact_check_outlined,
+                  color: AppColors.brandPrimary,
+                ),
+                title: const Text('الأسئلة مع الإجابات'),
+                subtitle: const Text('كل سؤال ومعه الإجابة النموذجية'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, LibraryPdfMode.withAnswers),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.edit_note,
+                  color: AppColors.brandPrimary,
+                ),
+                title: const Text('ورقة حل بدون إجابات'),
+                subtitle: const Text('نفس الأسئلة مع مساحة فارغة للحل الورقي'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, LibraryPdfMode.answerSheet),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (mode != null && mounted) await _exportPdf(subject, mode);
+  }
+
+  Future<void> _exportPdf(SubjectItem subject, LibraryPdfMode mode) async {
     if (_exporting.contains(subject.id)) return;
     setState(() => _exporting.add(subject.id));
 
     try {
-      final List<ContentItem> questions =
-          await LibraryRepo().fetchContent(subject.id, 'question');
+      final List<ContentItem> questions = await LibraryRepo().fetchContent(
+        subject.id,
+        'question',
+      );
 
       if (!mounted) return;
 
@@ -85,13 +133,12 @@ class _SubjectsViewState extends State<SubjectsView> {
       await LibraryPdf.shareSubject(
         subjectName: subject.name,
         questions: questions,
+        mode: mode,
       );
     } catch (e) {
       if (!mounted) return;
       _snack(
-        e is StateError
-            ? e.message
-            : 'تعذّر إنشاء ملف PDF، حاول مرة أخرى',
+        e is StateError ? e.message : 'تعذّر إنشاء ملف PDF، حاول مرة أخرى',
         isError: true,
       );
     } finally {
@@ -105,8 +152,9 @@ class _SubjectsViewState extends State<SubjectsView> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor:
-              isError ? AppColors.error600 : AppColors.brandSecondary,
+          backgroundColor: isError
+              ? AppColors.error600
+              : AppColors.brandSecondary,
         ),
       );
   }
@@ -139,41 +187,44 @@ class _SubjectsViewState extends State<SubjectsView> {
       ),
       body: BrandBackdrop(
         child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: FutureBuilder<bool>(
-            future: _isSignedInFuture,
-            builder: (context, authSnapshot) {
-              if (authSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            child: FutureBuilder<bool>(
+              future: _isSignedInFuture,
+              builder: (context, authSnapshot) {
+                if (authSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              if (authSnapshot.data != true) {
-                return _buildLoginRequiredScreen();
-              }
+                if (authSnapshot.data != true) {
+                  return _buildLoginRequiredScreen();
+                }
 
-              return FutureBuilder<Student?>(
-                future: _profileFuture,
-                builder: (context, profileSnapshot) {
-                  if (profileSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                return FutureBuilder<Student?>(
+                  future: _profileFuture,
+                  builder: (context, profileSnapshot) {
+                    if (profileSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                  final profile = profileSnapshot.data;
+                    final profile = profileSnapshot.data;
 
-                  if (profile == null || !profile.isActive) {
-                    return _buildPendingReviewScreen(
-                      profile,
-                    ); // ← مررنا profile
-                  }
+                    if (profile == null || !profile.isActive) {
+                      return _buildPendingReviewScreen(
+                        profile,
+                      ); // ← مررنا profile
+                    }
 
-                  return _buildSubjectsList();
-                },
-              );
-            },
+                    return _buildSubjectsList();
+                  },
+                );
+              },
+            ),
           ),
-        ),
         ),
       ),
       bottomNavigationBar: const CustomBottomNavBar(current: NavTab.library),
@@ -216,11 +267,7 @@ class _SubjectsViewState extends State<SubjectsView> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.bookmark_border,
-                  size: 64,
-                  color: AppColors.gray400,
-                ),
+                Icon(Icons.bookmark_border, size: 64, color: AppColors.gray400),
                 const Gap(16),
                 CustomText(
                   text: 'مكتبتك فارغة',
@@ -318,8 +365,8 @@ class _SubjectsViewState extends State<SubjectsView> {
                             text: !hasQuestions
                                 ? 'لا توجد أسئلة محفوظة'
                                 : subject.maxSavedQuestions == null
-                                    ? '$count سؤال محفوظ'
-                                    : '$count من ${subject.maxSavedQuestions} سؤال محفوظ',
+                                ? '$count سؤال محفوظ'
+                                : '$count من ${subject.maxSavedQuestions} سؤال محفوظ',
                             color: subject.isFull
                                 ? AppColors.warning700
                                 : AppColors.gray600,
@@ -352,8 +399,9 @@ class _SubjectsViewState extends State<SubjectsView> {
                   child: OutlinedButton.icon(
                     // Disabled with nothing to export, so the student can
                     // never generate an empty PDF.
-                    onPressed:
-                        hasQuestions && !isExporting ? () => _exportPdf(subject) : null,
+                    onPressed: hasQuestions && !isExporting
+                        ? () => _chooseExport(subject)
+                        : null,
                     icon: isExporting
                         ? const SizedBox(
                             width: 16,

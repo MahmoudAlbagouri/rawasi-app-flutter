@@ -12,6 +12,10 @@ class SubscriptionPlan {
   final bool hasDiscount;
   final List<PlanFeature> features;
 
+  /// Where to transfer the money, managed per package from the dashboard.
+  /// Payment happens outside the app; these are only shown with a copy button.
+  final List<PaymentAccount> paymentAccounts;
+
   SubscriptionPlan({
     required this.id,
     required this.name,
@@ -25,6 +29,7 @@ class SubscriptionPlan {
     required this.isFeatured,
     required this.hasDiscount,
     required this.features,
+    this.paymentAccounts = const [],
   });
 
   factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
@@ -47,6 +52,11 @@ class SubscriptionPlan {
       isFeatured: json['is_featured'] ?? false,
       hasDiscount: json['has_discount'] ?? false,
       features: features,
+      paymentAccounts: ((json['payment_accounts'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(PaymentAccount.fromJson)
+          .where((a) => a.value.isNotEmpty)
+          .toList(),
     );
   }
 
@@ -83,4 +93,23 @@ class PlanFeature {
       isIncluded: json['is_included'] ?? false,
     );
   }
+}
+
+/// One transfer destination, e.g. "فودافون كاش" / "01027252071".
+class PaymentAccount {
+  final String label;
+  final String value;
+
+  const PaymentAccount({required this.label, required this.value});
+
+  factory PaymentAccount.fromJson(Map<String, dynamic> json) => PaymentAccount(
+    label: (json['label'] ?? '').toString().trim(),
+    value: (json['value'] ?? '').toString().trim(),
+  );
+
+  /// Shown on older backends that send no accounts — the number the app used
+  /// to hardcode, so the payment page is never left without one.
+  static const List<PaymentAccount> legacy = [
+    PaymentAccount(label: 'رقم محفظة الدفع', value: '01027252071'),
+  ];
 }

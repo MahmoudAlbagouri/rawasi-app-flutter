@@ -99,8 +99,10 @@ class _ForgotPasswordOtpViewState extends State<ForgotPasswordOtpView> {
 
     setState(() => _isLoading = true);
     try {
-      final resetToken =
-          await _authRepo.checkForgetPasswordOtp(widget.phone, otp);
+      final resetToken = await _authRepo.checkForgetPasswordOtp(
+        widget.phone,
+        otp,
+      );
       // إذا نجح التحقق → انتقل لتحديث كلمة المرور
       Navigator.pushReplacement(
         context,
