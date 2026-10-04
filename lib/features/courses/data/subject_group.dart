@@ -90,18 +90,20 @@ List<SubjectGroup> groupCoursesBySubject(List<Course> courses) {
       if (p.totalLessons > total) total = p.totalLessons;
     }
 
-    groups.add(SubjectGroup(
-      name: name,
-      icon: group.first.icon,
-      courses: group,
-      target: group.firstWhere(
-        (c) => (c.progress?.percentage ?? 0) < 100,
-        orElse: () => group.first,
+    groups.add(
+      SubjectGroup(
+        name: name,
+        icon: group.first.icon,
+        courses: group,
+        target: group.firstWhere(
+          (c) => (c.progress?.percentage ?? 0) < 100,
+          orElse: () => group.first,
+        ),
+        completedLessons: completed,
+        totalLessons: total,
+        availableLessons: available,
       ),
-      completedLessons: completed,
-      totalLessons: total,
-      availableLessons: available,
-    ));
+    );
   });
 
   groups.sort((a, b) => a.name.compareTo(b.name));

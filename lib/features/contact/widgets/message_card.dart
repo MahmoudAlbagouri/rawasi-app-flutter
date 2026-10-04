@@ -212,7 +212,9 @@ class MessageCard extends StatelessWidget {
               ),
               child: Icon(
                 // Tells the two kinds of message apart at a glance in the list.
-                message.isAboutQuestion ? Icons.flag_outlined : Icons.question_mark,
+                message.isAboutQuestion
+                    ? Icons.flag_outlined
+                    : Icons.question_mark,
                 size: 16,
                 color: AppColors.brandPrimary,
               ),
@@ -237,7 +239,10 @@ class MessageCard extends StatelessWidget {
                     children: [
                       Text(
                         '${message.createdAt.day}/${message.createdAt.month}/${message.createdAt.year}',
-                        style: TextStyle(color: AppColors.gray500, fontSize: 12),
+                        style: TextStyle(
+                          color: AppColors.gray500,
+                          fontSize: 12,
+                        ),
                       ),
                       if (message.isAboutQuestion) ...[
                         const Gap(8),

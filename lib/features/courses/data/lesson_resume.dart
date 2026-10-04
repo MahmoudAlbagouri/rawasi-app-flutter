@@ -47,8 +47,11 @@ class LessonResume {
   int positionInLesson(int indexInSitting) => alreadyDone + indexInSitting + 1;
 
   /// An empty sitting, before anything is loaded.
-  static const LessonResume empty =
-      LessonResume(questions: [], alreadyDone: 0, total: 0);
+  static const LessonResume empty = LessonResume(
+    questions: [],
+    alreadyDone: 0,
+    total: 0,
+  );
 }
 
 /// Picks up where the student left off.

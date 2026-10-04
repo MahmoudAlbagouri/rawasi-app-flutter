@@ -143,11 +143,7 @@ class StudyReminderCard extends StatelessWidget {
                   weight: FontWeight.bold,
                 ),
                 const Gap(2),
-                CustomText(
-                  text: _body,
-                  color: AppColors.gray600,
-                  size: 12,
-                ),
+                CustomText(text: _body, color: AppColors.gray600, size: 12),
               ],
             ),
           ),

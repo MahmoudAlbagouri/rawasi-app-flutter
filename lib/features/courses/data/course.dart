@@ -42,11 +42,14 @@ class Course {
     final n = _normalized(name);
 
     if (n.contains('قران')) return Icons.auto_stories; // القرآن الكريم — mushaf
-    if (n.contains('فقه')) return Icons.balance; // الفقه الحنفي / الشافعي — scales
-    if (n.contains('تفسير')) return Icons.manage_search; // التفسير — text under a magnifier
+    if (n.contains('فقه'))
+      return Icons.balance; // الفقه الحنفي / الشافعي — scales
+    if (n.contains('تفسير'))
+      return Icons.manage_search; // التفسير — text under a magnifier
     if (n.contains('حديث')) return Icons.format_quote; // الحديث — quotation
     if (n.contains('توحيد')) return Icons.star; // التوحيد
-    if (n.contains('ميراث') || n.contains('مواريث')) return Icons.account_tree; // الميراث — family tree
+    if (n.contains('ميراث') || n.contains('مواريث'))
+      return Icons.account_tree; // الميراث — family tree
 
     return Icons.menu_book;
   }

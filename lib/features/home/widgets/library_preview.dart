@@ -60,8 +60,10 @@ class LibraryPreview extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 onTap: () => onOpenSubject(s),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -197,11 +199,7 @@ class LibraryPreviewSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const HomeCard(
       child: Column(
-        children: [
-          SkeletonBar(height: 38),
-          Gap(12),
-          SkeletonBar(height: 38),
-        ],
+        children: [SkeletonBar(height: 38), Gap(12), SkeletonBar(height: 38)],
       ),
     );
   }

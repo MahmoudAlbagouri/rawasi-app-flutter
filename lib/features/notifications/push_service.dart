@@ -58,7 +58,8 @@ class PushService {
 
   /// Lets a message be shown from anywhere, including before any screen has a
   /// context of its own. Handed to MaterialApp in main.dart.
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   bool _available = false;
   StreamSubscription<String>? _tokenRefresh;
@@ -193,7 +194,9 @@ class PushService {
       final launch = await plugin.getNotificationAppLaunchDetails();
       if (launch?.didNotificationLaunchApp ?? false) {
         final payload = launch!.notificationResponse?.payload;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _presentPayload(payload));
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _presentPayload(payload),
+        );
       }
     } catch (e) {
       _local = null;
@@ -254,10 +257,12 @@ class PushService {
 
   /// Shows the full message in-app, after a tap on a Firebase notification.
   void _present(RemoteMessage message) {
-    _presentContent(PushMessageContent.from(
-      title: message.notification?.title,
-      body: message.notification?.body,
-    ));
+    _presentContent(
+      PushMessageContent.from(
+        title: message.notification?.title,
+        body: message.notification?.body,
+      ),
+    );
   }
 
   /// Same, after a tap on a notification the app posted itself.
@@ -276,18 +281,27 @@ class PushService {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Row(
           children: [
-            const Icon(Icons.notifications_active, color: AppColors.brandPrimary),
+            const Icon(
+              Icons.notifications_active,
+              color: AppColors.brandPrimary,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 content.title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
               ),
             ),
           ],
         ),
         content: SingleChildScrollView(
-          child: Text(content.body, style: const TextStyle(fontSize: 15, height: 1.5)),
+          child: Text(
+            content.body,
+            style: const TextStyle(fontSize: 15, height: 1.5),
+          ),
         ),
         actions: [
           TextButton(

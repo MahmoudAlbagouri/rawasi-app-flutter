@@ -21,11 +21,7 @@ class StatsSummaryCard extends StatelessWidget {
   final StudentStats stats;
   final VoidCallback onTap;
 
-  const StatsSummaryCard({
-    super.key,
-    required this.stats,
-    required this.onTap,
-  });
+  const StatsSummaryCard({super.key, required this.stats, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -142,11 +138,11 @@ class StatsSummaryCard extends StatelessWidget {
   }
 
   Widget _divider() => Container(
-        width: 1,
-        height: 34,
-        color: AppColors.gray200,
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-      );
+    width: 1,
+    height: 34,
+    color: AppColors.gray200,
+    margin: const EdgeInsets.symmetric(horizontal: 6),
+  );
 
   /// Whichever forward-looking figure the student can actually act on: the
   /// gap since their last lesson if they have one, otherwise their pace.

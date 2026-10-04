@@ -359,14 +359,14 @@ class _ContactViewState extends State<ContactView>
   }
 
   Future<void> _call() => _open(
-        Uri(scheme: 'tel', path: _supportPhone),
-        'لا يمكن إجراء الاتصال من هذا الجهاز',
-      );
+    Uri(scheme: 'tel', path: _supportPhone),
+    'لا يمكن إجراء الاتصال من هذا الجهاز',
+  );
 
   Future<void> _openWhatsapp() => _open(
-        Uri.parse('https://wa.me/$_supportWhatsapp'),
-        'تأكد من تثبيت واتساب على جهازك',
-      );
+    Uri.parse('https://wa.me/$_supportWhatsapp'),
+    'تأكد من تثبيت واتساب على جهازك',
+  );
 
   void _showPhoneNumberDialog() {
     const phoneNumber = _supportPhone;

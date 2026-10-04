@@ -35,7 +35,8 @@ class ContactMessage {
       message: json['message']?.toString() ?? '',
       reply: json['reply']?.toString(),
       createdAt:
-          DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
       questionId: _int(json['question_id']),
       question: json['question']?.toString(),
     );

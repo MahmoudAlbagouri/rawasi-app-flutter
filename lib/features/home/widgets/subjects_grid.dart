@@ -40,8 +40,8 @@ class SubjectsGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 900
             ? 4
             : constraints.maxWidth >= 600
-                ? 3
-                : 2;
+            ? 3
+            : 2;
         const spacing = 12.0;
         final width =
             (constraints.maxWidth - spacing * (columns - 1)) / columns;
@@ -51,7 +51,10 @@ class SubjectsGrid extends StatelessWidget {
           runSpacing: spacing,
           children: [
             for (final t in tiles)
-              SizedBox(width: width, child: _SubjectCard(tile: t, onOpen: onOpen)),
+              SizedBox(
+                width: width,
+                child: _SubjectCard(tile: t, onOpen: onOpen),
+              ),
           ],
         );
       },
@@ -98,11 +101,7 @@ class _SubjectCard extends StatelessWidget {
           if (count != null) ...[
             AnimatedProgressBar(value: tile.fraction, height: 6),
             const Gap(6),
-            CustomText(
-              text: count,
-              color: AppColors.gray600,
-              size: 11,
-            ),
+            CustomText(text: count, color: AppColors.gray600, size: 11),
           ] else
             // Analytics unavailable: the card still opens the subject, it just
             // carries no figures.

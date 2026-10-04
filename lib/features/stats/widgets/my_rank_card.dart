@@ -81,9 +81,109 @@ class MyRankCard extends StatelessWidget {
           CustomText(
             text: inTopTen
                 ? 'ضمن أول عشرة في ${board.scopeLabel}'
-                : 'نقطة لكل سؤال تحله',
+                : 'نقطة لكل سؤال تحله، جديدًا كان أو مكررًا',
             color: AppColors.gray600,
             size: 12,
+          ),
+          if (weeklyLabel(board.rankChangeWeek) != null) ...[
+            const Gap(10),
+            _weeklyChange(board.rankChangeWeek!),
+          ],
+          const Gap(12),
+          // Where the points come from.
+          Row(
+            children: [
+              Expanded(
+                child: _breakdown(
+                  icon: Icons.fiber_new_outlined,
+                  label: 'أسئلة جديدة',
+                  value: arabicQuestions(board.myNewQuestions),
+                ),
+              ),
+              const Gap(10),
+              Expanded(
+                child: _breakdown(
+                  icon: Icons.replay,
+                  label: 'أسئلة مكررة',
+                  value: arabicQuestions(board.myResolvedQuestions),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "تقدمت 72 مركزًا هذا الأسبوع" — or null when there is nothing to say.
+  @visibleForTesting
+  static String? weeklyLabel(int? change) {
+    if (change == null) return null;
+    if (change > 0) return 'تقدمت ${arabicPlaces(change)} هذا الأسبوع';
+    if (change < 0) return 'تراجعت ${arabicPlaces(-change)} هذا الأسبوع';
+    return 'حافظت على مركزك هذا الأسبوع';
+  }
+
+  Widget _weeklyChange(int change) {
+    final up = change > 0;
+    final color = up ? AppColors.success700 : AppColors.gray700;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: up ? AppColors.success50 : AppColors.gray100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            change > 0
+                ? Icons.trending_up
+                : (change < 0 ? Icons.trending_down : Icons.trending_flat),
+            color: color,
+            size: 20,
+          ),
+          const Gap(8),
+          Expanded(
+            child: CustomText(
+              text: weeklyLabel(change)!,
+              color: color,
+              size: 13,
+              weight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _breakdown({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: AppColors.brandPrimary, size: 16),
+              const Gap(4),
+              CustomText(text: label, color: AppColors.gray600, size: 11),
+            ],
+          ),
+          const Gap(4),
+          CustomText(
+            text: 'حللت $value',
+            color: AppColors.gray900,
+            size: 13,
+            weight: FontWeight.bold,
           ),
         ],
       ),

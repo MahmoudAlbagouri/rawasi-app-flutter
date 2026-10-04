@@ -16,7 +16,10 @@ class NotificationsRepo {
 
   /// Registers [token] for the signed-in student and returns the broadcast
   /// topic this device should subscribe to.
-  Future<String> registerDevice(String token, {required String platform}) async {
+  Future<String> registerDevice(
+    String token, {
+    required String platform,
+  }) async {
     final result = await _api.post('/device-token', {
       'token': token,
       'platform': platform,

@@ -23,6 +23,12 @@ class StudentStats {
   final Inactivity inactivity;
   final Trial trial;
 
+  /// The paid package, once a payment is approved — replaces the trial card.
+  final Subscription subscription;
+
+  /// How well the open lessons are drilled (5 solves of a lesson = 100%).
+  final Mastery mastery;
+
   StudentStats({
     required this.completion,
     required this.subjects,
@@ -32,6 +38,8 @@ class StudentStats {
     required this.leaderboard,
     required this.inactivity,
     required this.trial,
+    this.subscription = const Subscription(),
+    this.mastery = const Mastery(),
   });
 
   factory StudentStats.fromJson(Map<String, dynamic> json) {
@@ -48,6 +56,12 @@ class StudentStats {
       // parses - the card then renders its "never started" state.
       inactivity: Inactivity.fromJson(json['inactivity'] ?? const {}),
       trial: Trial.fromJson(json['trial'] ?? const {}),
+      subscription: Subscription.fromJson(
+        Map<String, dynamic>.from(json['subscription'] as Map? ?? const {}),
+      ),
+      mastery: Mastery.fromJson(
+        Map<String, dynamic>.from(json['mastery'] as Map? ?? const {}),
+      ),
     );
   }
 }
@@ -80,14 +94,15 @@ class Trial {
   });
 
   factory Trial.fromJson(Map<String, dynamic> json) => Trial(
-        started: json['started'] == true,
-        totalDays: _int(json['total_days']),
-        daysUsed: json['days_used'] == null ? null : _int(json['days_used']),
-        daysRemaining:
-            json['days_remaining'] == null ? null : _int(json['days_remaining']),
-        endsAt: json['ends_at']?.toString(),
-        hasEnded: json['has_ended'] == true,
-      );
+    started: json['started'] == true,
+    totalDays: _int(json['total_days']),
+    daysUsed: json['days_used'] == null ? null : _int(json['days_used']),
+    daysRemaining: json['days_remaining'] == null
+        ? null
+        : _int(json['days_remaining']),
+    endsAt: json['ends_at']?.toString(),
+    hasEnded: json['has_ended'] == true,
+  );
 
   /// Nothing to show before the trial starts.
   bool get isVisible => started;
@@ -107,9 +122,9 @@ class Inactivity {
   Inactivity({this.lastStudyDate, this.delayDays});
 
   factory Inactivity.fromJson(Map<String, dynamic> json) => Inactivity(
-        lastStudyDate: json['last_study_date']?.toString(),
-        delayDays: json['delay_days'] == null ? null : _int(json['delay_days']),
-      );
+    lastStudyDate: json['last_study_date']?.toString(),
+    delayDays: json['delay_days'] == null ? null : _int(json['delay_days']),
+  );
 
   bool get hasStarted => delayDays != null;
 
@@ -159,20 +174,19 @@ class Completion {
   /// `Student.progress` instead, which is a different statistic entirely:
   /// completed QUESTIONS over every question in the database, unscoped by
   /// grade or madhab. See the note in home_view.dart.)
-  String get percentLabel =>
-      percentage == percentage.roundToDouble()
-          ? percentage.toInt().toString()
-          : percentage.toString();
+  String get percentLabel => percentage == percentage.roundToDouble()
+      ? percentage.toInt().toString()
+      : percentage.toString();
 
   /// 0.0–1.0, for progress indicators.
   double get fraction => (percentage / 100).clamp(0.0, 1.0);
 
   factory Completion.fromJson(Map<String, dynamic> json) => Completion(
-        completedLessons: _int(json['completed_lessons']),
-        totalLessons: _int(json['total_lessons']),
-        remainingLessons: _int(json['remaining_lessons']),
-        percentage: _num(json['percentage']),
-      );
+    completedLessons: _int(json['completed_lessons']),
+    totalLessons: _int(json['total_lessons']),
+    remainingLessons: _int(json['remaining_lessons']),
+    percentage: _num(json['percentage']),
+  );
 }
 
 class SubjectProgress {
@@ -203,7 +217,8 @@ class SubjectProgress {
 
   String get unitLabel => unit == 'warad' ? 'ورد' : 'درس';
 
-  factory SubjectProgress.fromJson(Map<String, dynamic> json) => SubjectProgress(
+  factory SubjectProgress.fromJson(Map<String, dynamic> json) =>
+      SubjectProgress(
         key: json['key']?.toString() ?? '',
         label: json['label']?.toString() ?? '',
         unit: json['unit']?.toString() ?? 'lesson',
@@ -221,10 +236,8 @@ class Streak {
 
   Streak({required this.current, required this.longest});
 
-  factory Streak.fromJson(Map<String, dynamic> json) => Streak(
-        current: _int(json['current']),
-        longest: _int(json['longest']),
-      );
+  factory Streak.fromJson(Map<String, dynamic> json) =>
+      Streak(current: _int(json['current']), longest: _int(json['longest']));
 }
 
 class TimeSpent {
@@ -232,13 +245,17 @@ class TimeSpent {
   final int minutes;
   final double hours;
 
-  TimeSpent({required this.seconds, required this.minutes, required this.hours});
+  TimeSpent({
+    required this.seconds,
+    required this.minutes,
+    required this.hours,
+  });
 
   factory TimeSpent.fromJson(Map<String, dynamic> json) => TimeSpent(
-        seconds: _int(json['seconds']),
-        minutes: _int(json['minutes']),
-        hours: _num(json['hours']),
-      );
+    seconds: _int(json['seconds']),
+    minutes: _int(json['minutes']),
+    hours: _num(json['hours']),
+  );
 
   /// "2 ساعة و 2 دقيقة" — falls back to minutes, then seconds, for short runs.
   String get label {
@@ -311,6 +328,15 @@ class Leaderboard {
   final int? myRank;
   final int myPoints;
 
+  /// The breakdown behind [myPoints]: questions solved for the first time,
+  /// and counted re-solves (at most one per question per day).
+  final int myNewQuestions;
+  final int myResolvedQuestions;
+
+  /// Places gained (+) or lost (-) over the last 7 days; null when there is
+  /// nothing to compare against (no points a week ago).
+  final int? rankChangeWeek;
+
   /// The cohort this board ranks: the student's academic year and, for the
   /// termed grades, their term. Grade 3 has no terms, so [scopeTerm] is null.
   final String scopeYear;
@@ -320,6 +346,9 @@ class Leaderboard {
     required this.top,
     this.myRank,
     required this.myPoints,
+    this.myNewQuestions = 0,
+    this.myResolvedQuestions = 0,
+    this.rankChangeWeek,
     required this.scopeYear,
     this.scopeTerm,
   });
@@ -333,6 +362,14 @@ class Leaderboard {
           .toList(),
       myRank: me['rank'] == null ? null : _int(me['rank']),
       myPoints: _int(me['points']),
+      // Older backends sent only points, which were all first solves.
+      myNewQuestions: me.containsKey('new_questions')
+          ? _int(me['new_questions'])
+          : _int(me['points']),
+      myResolvedQuestions: _int(me['resolved_questions']),
+      rankChangeWeek: me['rank_change_week'] == null
+          ? null
+          : _int(me['rank_change_week']),
       scopeYear: scope['academic_year']?.toString() ?? '',
       scopeTerm: scope['term']?.toString(),
     );
@@ -370,11 +407,59 @@ class LeaderboardEntry {
     required this.isCurrentStudent,
   });
 
-  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) => LeaderboardEntry(
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
+      LeaderboardEntry(
         rank: _int(json['rank']),
         name: json['name']?.toString() ?? 'طالب',
         points: _int(json['points']),
         completedLessons: _int(json['completed_lessons']),
         isCurrentStudent: json['is_current_student'] == true,
       );
+}
+
+/// The approved paid subscription. [isPaid] false = still on the free plan.
+class Subscription {
+  final bool isPaid;
+  final String? planName;
+  final String? startedAt;
+  final String? expiresAt;
+
+  const Subscription({
+    this.isPaid = false,
+    this.planName,
+    this.startedAt,
+    this.expiresAt,
+  });
+
+  factory Subscription.fromJson(Map<String, dynamic> json) => Subscription(
+    isPaid: json['is_paid'] == true,
+    planName: json['plan_name']?.toString(),
+    startedAt: json['started_at']?.toString(),
+    expiresAt: json['expires_at']?.toString(),
+  );
+}
+
+/// Mastery of the open lessons: each lesson solved [targetRepetitions] times
+/// (every question in it) = 100% for that lesson; [percentage] is the average.
+class Mastery {
+  final double percentage;
+  final int targetRepetitions;
+  final int openLessons;
+  final int masteredLessons;
+
+  const Mastery({
+    this.percentage = 0,
+    this.targetRepetitions = 5,
+    this.openLessons = 0,
+    this.masteredLessons = 0,
+  });
+
+  factory Mastery.fromJson(Map<String, dynamic> json) => Mastery(
+    percentage: _num(json['percentage']),
+    targetRepetitions: json['target_repetitions'] == null
+        ? 5
+        : _int(json['target_repetitions']),
+    openLessons: _int(json['open_lessons']),
+    masteredLessons: _int(json['mastered_lessons']),
+  );
 }

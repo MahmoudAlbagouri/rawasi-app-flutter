@@ -58,8 +58,9 @@ class AuthActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final secondary =
-        primary == AuthAction.login ? AuthAction.register : AuthAction.login;
+    final secondary = primary == AuthAction.login
+        ? AuthAction.register
+        : AuthAction.login;
 
     String label(AuthAction a) =>
         a == AuthAction.login ? loginLabel : registerLabel;

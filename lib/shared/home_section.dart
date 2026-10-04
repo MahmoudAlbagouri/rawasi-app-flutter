@@ -47,11 +47,7 @@ class HomeCard extends StatelessWidget {
     );
 
     if (onTap == null) {
-      return Container(
-        padding: padding,
-        decoration: decoration,
-        child: child,
-      );
+      return Container(padding: padding, decoration: decoration, child: child);
     }
 
     return Material(
@@ -174,15 +170,16 @@ class AnimatedProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final target = value.clamp(0.0, 1.0);
     final bar = (double v) => ClipRRect(
-          borderRadius: BorderRadius.circular(height),
-          child: LinearProgressIndicator(
-            value: v,
-            minHeight: height,
-            backgroundColor: AppColors.gray200,
-            color: color ??
-                (target >= 1 ? AppColors.success600 : AppColors.brandPrimary),
-          ),
-        );
+      borderRadius: BorderRadius.circular(height),
+      child: LinearProgressIndicator(
+        value: v,
+        minHeight: height,
+        backgroundColor: AppColors.gray200,
+        color:
+            color ??
+            (target >= 1 ? AppColors.success600 : AppColors.brandPrimary),
+      ),
+    );
 
     if (motionReduced(context)) return bar(target);
 

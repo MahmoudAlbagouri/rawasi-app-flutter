@@ -31,10 +31,7 @@ class InspirationCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFFD0B3FF),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFD0B3FF), width: 1),
       ),
       child: Row(
         children: [

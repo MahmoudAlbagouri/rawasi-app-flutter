@@ -304,12 +304,22 @@ class _HomeViewState extends State<HomeView> {
   /// The free-trial card. Hidden entirely before activation — a student with
   /// no start date has no trial running, and a countdown from null would be
   /// a fabrication.
+  /// The free-trial countdown, or — once a payment is approved — the active
+  /// package with its expiry date in the same place.
   List<Widget> _trialSection(HomeData data) {
-    final trial = data.stats?.trial;
+    final stats = data.stats;
+    if (stats == null ||
+        !TrialCard.hasContent(stats.trial, stats.subscription)) {
+      return const [];
+    }
 
-    if (trial == null || !trial.isVisible) return const [];
-
-    return [_animated(260, TrialCard(trial: trial)), const Gap(22)];
+    return [
+      _animated(
+        260,
+        TrialCard(trial: stats.trial, subscription: stats.subscription),
+      ),
+      const Gap(22),
+    ];
   }
 
   /// The study reminder, from the SAME widget إحصائياتي uses.

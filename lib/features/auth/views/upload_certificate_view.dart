@@ -10,7 +10,6 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
-import 'package:rawasi_app_n/features/auth/data/subscription_repo.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 enum UploadState { idle, uploading, success, error }
@@ -46,16 +45,10 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
   final ImagePicker _picker = ImagePicker();
 
   // 👇 حقول كود الخصم
-  final _couponController = TextEditingController();
-  bool _isApplyingCoupon = false;
-  String? _appliedCouponCode;
-  double? _discountedPrice;
-  double? _discountAmount;
 
   @override
   void dispose() {
     _timer?.cancel();
-    _couponController.dispose();
     super.dispose();
   }
 
@@ -100,57 +93,6 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
     }
   }
 
-  // 👇 تطبيق كود الخصم
-  Future<void> _applyCoupon() async {
-    final code = _couponController.text.trim();
-    if (code.isEmpty) {
-      _showError('يرجى إدخال كود الخصم');
-      return;
-    }
-
-    setState(() {
-      _isApplyingCoupon = true;
-    });
-
-    try {
-      final response = await SubscriptionRepo().applyCoupon(
-        widget.planId,
-        code,
-      );
-
-      if (response.success && response.data != null) {
-        setState(() {
-          _appliedCouponCode = code;
-          _discountAmount = response.data!.plan.discountAmount;
-          _discountedPrice = response.data!.plan.finalPrice;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('تم تطبيق كود الخصم "$code" بنجاح!'),
-              backgroundColor: AppColors.success600,
-            ),
-          );
-        }
-      } else {
-        throw Exception(response.message ?? 'كود الخصم غير صالح');
-      }
-    } catch (e) {
-      if (e is ApiError) {
-        _showError(e.message);
-      } else {
-        _showError('فشل تطبيق الكود: ${e.toString()}');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isApplyingCoupon = false;
-        });
-      }
-    }
-  }
-
   Future<void> _uploadCertificate() async {
     if (_image == null) {
       _showError('يرجى اختيار صورة الإيصال أولًا');
@@ -187,7 +129,6 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
               : null,
         ),
         'plan_id': widget.planId.toString(),
-        if (_appliedCouponCode != null) 'coupon': _appliedCouponCode,
       });
 
       final response = await ApiServices().postFormData(
@@ -320,46 +261,6 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                           ),
                         ],
                       ),
-                      if (_discountedPrice != null) ...[
-                        const Divider(height: 24),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.discount,
-                              color: AppColors.success600,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'بعد الخصم: ${_discountedPrice!.toInt()} ج.م',
-                              style: TextStyle(
-                                color: AppColors.success700,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.success100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'وفر ${_discountAmount!.toInt()} ج.م',
-                                style: TextStyle(
-                                  color: AppColors.success700,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -450,9 +351,6 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
                   ),
 
                 const Gap(24),
-                _buildCouponSection(),
-
-                const Gap(24),
 
                 // زر الرفع (يختفي عند النجاح)
                 if (_uploadState != UploadState.success)
@@ -487,7 +385,7 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
   }
 
   Widget _buildAmountToTransfer() {
-    final amount = (_discountedPrice ?? widget.planPrice).toInt();
+    final amount = widget.planPrice.toInt();
 
     return Container(
       width: double.infinity,
@@ -678,143 +576,5 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
     if (_uploadState == UploadState.uploading) return AppColors.gray300;
     if (_uploadState == UploadState.error) return AppColors.error600;
     return AppColors.brandPrimary;
-  }
-
-  // 👇 قسم كود الخصم
-  Widget _buildCouponSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gray200.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.card_giftcard,
-                color: AppColors.brandPrimary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'كود الخصم',
-                style: TextStyle(
-                  color: AppColors.gray900,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const Gap(12),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.gray50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _appliedCouponCode != null
-                          ? AppColors.success500
-                          : AppColors.gray300,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _couponController,
-                    decoration: InputDecoration(
-                      hintText: _appliedCouponCode != null
-                          ? '✓ تم تطبيق: $_appliedCouponCode'
-                          : 'أدخل كود الخصم',
-                      hintStyle: TextStyle(
-                        color: _appliedCouponCode != null
-                            ? AppColors.success700
-                            : AppColors.gray500,
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      suffixIcon: _appliedCouponCode != null
-                          ? IconButton(
-                              icon: Icon(
-                                Icons.close,
-                                color: AppColors.gray500,
-                                size: 18,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _appliedCouponCode = null;
-                                  _discountedPrice = null;
-                                  _discountAmount = null;
-                                  _couponController.clear();
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    enabled: _appliedCouponCode == null,
-                    textDirection: TextDirection.rtl,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 90,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isApplyingCoupon || _appliedCouponCode != null
-                      ? null
-                      : _applyCoupon,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _appliedCouponCode != null
-                        ? AppColors.success100
-                        : AppColors.brandPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: _isApplyingCoupon
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          _appliedCouponCode != null ? 'مطبق' : 'تطبيق',
-                          style: TextStyle(
-                            color: _appliedCouponCode != null
-                                ? AppColors.success700
-                                : Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }

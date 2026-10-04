@@ -31,11 +31,11 @@ class AnimatedItemState extends State<AnimatedItem>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
-      ),
-    );
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+          ),
+        );
 
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(

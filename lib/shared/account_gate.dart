@@ -56,24 +56,23 @@ class AccountGate extends StatelessWidget {
       'تم استلام بياناتك بنجاح، وسيتم تفعيل حسابك من الإدارة في أقرب وقت.';
 
   IconData get _icon => switch (reason) {
-        GateReason.signedOut => Icons.lock_outline,
-        GateReason.profileIncomplete => Icons.person_outline,
-        GateReason.underReview => Icons.hourglass_top_outlined,
-      };
+    GateReason.signedOut => Icons.lock_outline,
+    GateReason.profileIncomplete => Icons.person_outline,
+    GateReason.underReview => Icons.hourglass_top_outlined,
+  };
 
   String get _title => switch (reason) {
-        GateReason.signedOut => 'لابد من تسجيل الدخول أولًا',
-        GateReason.profileIncomplete => 'استكمل بياناتك',
-        GateReason.underReview => underReviewTitle,
-      };
+    GateReason.signedOut => 'لابد من تسجيل الدخول أولًا',
+    GateReason.profileIncomplete => 'استكمل بياناتك',
+    GateReason.underReview => underReviewTitle,
+  };
 
   String get _body => switch (reason) {
-        GateReason.signedOut =>
-          'سجّل الدخول أو أنشئ حسابًا جديدًا للوصول إلى المحتوى.',
-        GateReason.profileIncomplete =>
-          'يرجى استكمال بيانات ملفك الشخصي للمتابعة.',
-        GateReason.underReview => underReviewBody,
-      };
+    GateReason.signedOut =>
+      'سجّل الدخول أو أنشئ حسابًا جديدًا للوصول إلى المحتوى.',
+    GateReason.profileIncomplete => 'يرجى استكمال بيانات ملفك الشخصي للمتابعة.',
+    GateReason.underReview => underReviewBody,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -107,10 +106,7 @@ class AccountGate extends StatelessWidget {
               size: 14,
               align: TextAlign.center,
             ),
-            if (action != null) ...[
-              const Gap(24),
-              action!,
-            ],
+            if (action != null) ...[const Gap(24), action!],
           ],
         ),
       ),

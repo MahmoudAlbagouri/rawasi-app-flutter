@@ -53,7 +53,9 @@ class _CustomDateFieldState extends State<CustomDateField> {
     final last = widget.lastDate ?? DateTime.now();
     // showDatePicker asserts initialDate <= lastDate, so clamp it: with a
     // lastDate of yesterday, defaulting to "now" would throw.
-    final initial = _selectedDate ?? (last.isBefore(DateTime.now()) ? last : DateTime.now());
+    final initial =
+        _selectedDate ??
+        (last.isBefore(DateTime.now()) ? last : DateTime.now());
 
     final picked = await showDatePicker(
       context: context,

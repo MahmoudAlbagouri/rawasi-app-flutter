@@ -55,24 +55,24 @@ class HomeData {
   });
 
   factory HomeData.signedOut() => HomeData(
-        isSignedIn: false,
-        profile: null,
-        stats: null,
-        courses: null,
-        library: null,
-        loadedAt: DateTime.now(),
-      );
+    isSignedIn: false,
+    profile: null,
+    stats: null,
+    courses: null,
+    library: null,
+    loadedAt: DateTime.now(),
+  );
 
   /// A signed-in student whose data has not arrived yet.
   factory HomeData.loading() => HomeData(
-        isSignedIn: true,
-        profile: null,
-        stats: null,
-        courses: null,
-        library: null,
-        loadedAt: DateTime.now(),
-        isLoading: true,
-      );
+    isSignedIn: true,
+    profile: null,
+    stats: null,
+    courses: null,
+    library: null,
+    loadedAt: DateTime.now(),
+    isLoading: true,
+  );
 
   /// Which snapshot home should render before its own future resolves.
   ///
@@ -100,8 +100,7 @@ class HomeData {
     return hasSession == false ? HomeData.signedOut() : HomeData.loading();
   }
 
-  bool get isFresh =>
-      DateTime.now().difference(loadedAt) < HomeRepo.cacheTtl;
+  bool get isFresh => DateTime.now().difference(loadedAt) < HomeRepo.cacheTtl;
 }
 
 class HomeRepo {

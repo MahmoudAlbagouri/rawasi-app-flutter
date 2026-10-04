@@ -22,8 +22,7 @@ const Map<String, String> _questionTypeLabels = {
 ///
 /// Public so the library flow can label a saved question without keeping a
 /// second copy of the map - the two must not drift.
-String questionTypeLabel(String? type) =>
-    _questionTypeLabels[type] ?? 'سؤال';
+String questionTypeLabel(String? type) => _questionTypeLabels[type] ?? 'سؤال';
 
 class Question {
   final int questionId;

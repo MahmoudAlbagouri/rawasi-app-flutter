@@ -24,7 +24,11 @@ class CoursesRepo {
       final data = response['data'] as List? ?? [];
       return data.map((e) => Lesson.fromJson(e)).toList();
     }
-    throw ApiError(message: response is Map ? (response['message'] ?? 'فشل تحميل الدروس') : 'فشل تحميل الدروس');
+    throw ApiError(
+      message: response is Map
+          ? (response['message'] ?? 'فشل تحميل الدروس')
+          : 'فشل تحميل الدروس',
+    );
   }
 
   Future<List<Question>> fetchQuestions(int lessonId) async {
@@ -34,7 +38,11 @@ class CoursesRepo {
       final data = response['data'] as List? ?? [];
       return data.map((e) => Question.fromJson(e)).toList();
     }
-    throw ApiError(message: response is Map ? (response['message'] ?? 'فشل تحميل الأسئلة') : 'فشل تحميل الأسئلة');
+    throw ApiError(
+      message: response is Map
+          ? (response['message'] ?? 'فشل تحميل الأسئلة')
+          : 'فشل تحميل الأسئلة',
+    );
   }
 
   /// Returns `{ lesson_completed, completed_questions_count, questions_count, next_lesson }`.
@@ -49,7 +57,11 @@ class CoursesRepo {
     if (response is Map<String, dynamic> && response['success'] == true) {
       return response['data'] as Map<String, dynamic>;
     }
-    throw ApiError(message: response is Map ? (response['message'] ?? 'فشل تحديد السؤال كمكتمل') : 'فشل تحديد السؤال كمكتمل');
+    throw ApiError(
+      message: response is Map
+          ? (response['message'] ?? 'فشل تحديد السؤال كمكتمل')
+          : 'فشل تحديد السؤال كمكتمل',
+    );
   }
 
   /// Returns `{ lesson, next_lesson }`.
@@ -64,6 +76,10 @@ class CoursesRepo {
     if (response is Map<String, dynamic> && response['success'] == true) {
       return response['data'] as Map<String, dynamic>;
     }
-    throw ApiError(message: response is Map ? (response['message'] ?? 'فشل إنهاء الدرس') : 'فشل إنهاء الدرس');
+    throw ApiError(
+      message: response is Map
+          ? (response['message'] ?? 'فشل إنهاء الدرس')
+          : 'فشل إنهاء الدرس',
+    );
   }
 }

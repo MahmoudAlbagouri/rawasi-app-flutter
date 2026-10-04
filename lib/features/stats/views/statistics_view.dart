@@ -14,6 +14,7 @@ import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
+import 'package:rawasi_app_n/features/stats/widgets/mastery_card.dart';
 import 'package:rawasi_app_n/features/stats/widgets/my_rank_card.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
@@ -115,69 +116,77 @@ class _StatisticsViewState extends State<StatisticsView> {
       ),
       body: BrandBackdrop(
         child: SafeArea(
-        child: FutureBuilder<_StatsPage>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            // _error keeps its retry button for genuine network/server
-            // failures, where retrying actually helps.
-            if (snapshot.hasError) {
-              return _error(snapshot.error);
-            }
+          child: FutureBuilder<_StatsPage>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              // _error keeps its retry button for genuine network/server
+              // failures, where retrying actually helps.
+              if (snapshot.hasError) {
+                return _error(snapshot.error);
+              }
 
-            final page = snapshot.data!;
+              final page = snapshot.data!;
 
-            if (page.gate != null) {
-              return AccountGate(
-                reason: page.gate!,
-                action: page.gate == GateReason.signedOut
-                    ? const AuthActions()
-                    : null,
-              );
-            }
+              if (page.gate != null) {
+                return AccountGate(
+                  reason: page.gate!,
+                  action: page.gate == GateReason.signedOut
+                      ? const AuthActions()
+                      : null,
+                );
+              }
 
-            final stats = page.stats!;
-            return RefreshIndicator(
-              onRefresh: () async => _reload(),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _overallCard(stats.completion),
-                  const Gap(16),
-                  _row(stats),
-                  const Gap(16),
-                  _pacingCard(stats.pacing),
-                  const Gap(16),
-                  TrialCard(trial: stats.trial),
-                  const Gap(16),
-                  StudyReminderCard(inactivity: stats.inactivity),
-                  // The per-subject "تقدم المواد" grid used to sit here. Removed
-                  // to keep this screen to a reasonable scroll: the same
-                  // per-subject figures are already on the home subjects grid
-                  // and on each course card, so nothing became unreachable.
-                  const Gap(20),
-                  _sectionTitle('لوحة المتصدرين'),
-                  const Gap(4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: CustomText(
-                      text: 'أول عشرة في ${stats.leaderboard.scopeLabel}',
-                      color: AppColors.gray600,
-                      size: 13,
+              final stats = page.stats!;
+              return RefreshIndicator(
+                onRefresh: () async => _reload(),
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _overallCard(stats.completion),
+                    const Gap(16),
+                    _row(stats),
+                    const Gap(16),
+                    _pacingCard(stats.pacing),
+                    const Gap(16),
+                    MasteryCard(mastery: stats.mastery),
+                    const Gap(16),
+                    TrialCard(
+                      trial: stats.trial,
+                      subscription: stats.subscription,
                     ),
-                  ),
-                  const Gap(12),
-                  MyRankCard(board: stats.leaderboard),
-                  const Gap(12),
-                  _leaderboardCard(stats.leaderboard, myCompletedLessons: stats.completion.completedLessons),
-                  const Gap(24),
-                ],
-              ),
-            );
-          },
-        ),
+                    const Gap(16),
+                    StudyReminderCard(inactivity: stats.inactivity),
+                    // The per-subject "تقدم المواد" grid used to sit here. Removed
+                    // to keep this screen to a reasonable scroll: the same
+                    // per-subject figures are already on the home subjects grid
+                    // and on each course card, so nothing became unreachable.
+                    const Gap(20),
+                    _sectionTitle('لوحة المتصدرين'),
+                    const Gap(4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: CustomText(
+                        text: 'أول عشرة في ${stats.leaderboard.scopeLabel}',
+                        color: AppColors.gray600,
+                        size: 13,
+                      ),
+                    ),
+                    const Gap(12),
+                    MyRankCard(board: stats.leaderboard),
+                    const Gap(12),
+                    _leaderboardCard(
+                      stats.leaderboard,
+                      myCompletedLessons: stats.completion.completedLessons,
+                    ),
+                    const Gap(24),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
       bottomNavigationBar: const CustomBottomNavBar(current: NavTab.stats),
@@ -205,7 +214,10 @@ class _StatisticsViewState extends State<StatisticsView> {
               onPressed: _reload,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
               ),
               child: const Text(
                 'إعادة المحاولة',
@@ -219,14 +231,14 @@ class _StatisticsViewState extends State<StatisticsView> {
   }
 
   Widget _sectionTitle(String text) => Align(
-        alignment: Alignment.centerRight,
-        child: CustomText(
-          text: text,
-          color: AppColors.brandPrimary,
-          size: 17,
-          weight: FontWeight.bold,
-        ),
-      );
+    alignment: Alignment.centerRight,
+    child: CustomText(
+      text: text,
+      color: AppColors.brandPrimary,
+      size: 17,
+      weight: FontWeight.bold,
+    ),
+  );
 
   // ---------------------------------------------------------------------------
   // 1. Overall completion
@@ -318,8 +330,11 @@ class _StatisticsViewState extends State<StatisticsView> {
               padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
               child: Column(
                 children: [
-                  Icon(Icons.local_fire_department,
-                      color: AppColors.warning500, size: 30),
+                  Icon(
+                    Icons.local_fire_department,
+                    color: AppColors.warning500,
+                    size: 30,
+                  ),
                   const Gap(8),
                   CustomText(
                     text: 'الأيام المتتالية',
@@ -356,7 +371,11 @@ class _StatisticsViewState extends State<StatisticsView> {
               padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
               child: Column(
                 children: [
-                  Icon(Icons.timer_outlined, color: AppColors.brandPrimary, size: 30),
+                  Icon(
+                    Icons.timer_outlined,
+                    color: AppColors.brandPrimary,
+                    size: 30,
+                  ),
                   const Gap(8),
                   CustomText(
                     text: 'مدة مذاكرتك',
@@ -534,7 +553,10 @@ class _StatisticsViewState extends State<StatisticsView> {
   // 6. Leaderboard
   // ---------------------------------------------------------------------------
 
-  Widget _leaderboardCard(Leaderboard board, {required int myCompletedLessons}) {
+  Widget _leaderboardCard(
+    Leaderboard board, {
+    required int myCompletedLessons,
+  }) {
     if (board.top.isEmpty) {
       return _card(
         child: CustomText(
@@ -610,7 +632,9 @@ class _StatisticsViewState extends State<StatisticsView> {
                   text: e.name,
                   color: AppColors.gray900,
                   size: 14,
-                  weight: e.isCurrentStudent ? FontWeight.bold : FontWeight.w500,
+                  weight: e.isCurrentStudent
+                      ? FontWeight.bold
+                      : FontWeight.w500,
                   // Names range from "Hamedo Mekky" to
                   // "مروان أحمد إبراهيم الطناني". Wrapping at two lines keeps
                   // the row height bounded without truncating most names.

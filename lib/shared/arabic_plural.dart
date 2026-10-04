@@ -39,47 +39,77 @@ String arabicCount(
 
 /// "يوم" / "يومان" / "5 أيام" / "15 يومًا"
 String arabicDays(int count) => arabicCount(
-      count,
-      singular: 'يوم',
-      dual: 'يومان',
-      plural: 'أيام',
-      accusativeSingular: 'يومًا',
-    );
+  count,
+  singular: 'يوم',
+  dual: 'يومان',
+  plural: 'أيام',
+  accusativeSingular: 'يومًا',
+);
 
 /// "نقطة" / "نقطتان" / "5 نقاط" / "15 نقطة"
 String arabicPoints(int count) => arabicCount(
-      count,
-      singular: 'نقطة',
-      dual: 'نقطتان',
-      plural: 'نقاط',
-      dropNumberForOneAndTwo: false,
-    );
+  count,
+  singular: 'نقطة',
+  dual: 'نقطتان',
+  plural: 'نقاط',
+  dropNumberForOneAndTwo: false,
+);
 
 /// "درس" / "درسان" / "5 دروس" / "15 درسًا"
 String arabicLessons(int count) => arabicCount(
-      count,
-      singular: 'درس',
-      dual: 'درسان',
-      plural: 'دروس',
-      accusativeSingular: 'درسًا',
-      dropNumberForOneAndTwo: false,
-    );
+  count,
+  singular: 'درس',
+  dual: 'درسان',
+  plural: 'دروس',
+  accusativeSingular: 'درسًا',
+  dropNumberForOneAndTwo: false,
+);
+
+/// "سؤال" / "سؤالان" / "5 أسئلة" / "15 سؤالًا"
+String arabicQuestions(int count) => arabicCount(
+  count,
+  singular: 'سؤال',
+  dual: 'سؤالان',
+  plural: 'أسئلة',
+  accusativeSingular: 'سؤالًا',
+  dropNumberForOneAndTwo: false,
+);
+
+/// "مركز" / "مركزين" / "5 مراكز" / "72 مركزًا" — places moved on the board.
+/// Dual in the genitive, as in "تقدمت مركزين".
+String arabicPlaces(int count) => arabicCount(
+  count,
+  singular: 'مركزًا واحدًا',
+  dual: 'مركزين',
+  plural: 'مراكز',
+  accusativeSingular: 'مركزًا',
+);
 
 /// "أسبوع" / "أسبوعين" / "3 أسابيع" / "15 أسبوعًا"
 ///
 /// The dual is the genitive "أسبوعين", not the nominative "أسبوعان": every use
 /// of this is after a preposition — "في أسبوعين".
 String arabicWeeks(int count) => arabicCount(
-      count,
-      singular: 'أسبوع',
-      dual: 'أسبوعين',
-      plural: 'أسابيع',
-      accusativeSingular: 'أسبوعًا',
-    );
+  count,
+  singular: 'أسبوع',
+  dual: 'أسبوعين',
+  plural: 'أسابيع',
+  accusativeSingular: 'أسبوعًا',
+);
 
 const List<String> _arabicMonths = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  'يناير',
+  'فبراير',
+  'مارس',
+  'أبريل',
+  'مايو',
+  'يونيو',
+  'يوليو',
+  'أغسطس',
+  'سبتمبر',
+  'أكتوبر',
+  'نوفمبر',
+  'ديسمبر',
 ];
 
 /// "2026-09-24" → "24 سبتمبر 2026".
