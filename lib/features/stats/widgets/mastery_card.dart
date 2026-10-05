@@ -5,7 +5,7 @@
 // The model, stated on the card so the number is never a mystery: each lesson
 // is meant to be solved 5 times. A lesson's mastery is (times solved, max 5)
 // / 5, where "solved N times" means every question in it was solved N times —
-// the first solve plus re-solves, at most one a day per question. The card's
+// the first solve plus every re-solve. The card's
 // figure is the average over the open lessons. Computed on the server
 // (StudentAnalyticsService::mastery); nothing is derived here.
 

@@ -259,18 +259,47 @@ void main() {
     test('the blank space grows with the model answer, within limits', () {
       expect(
         LibraryPdf.blankLinesFor(0),
-        3,
-        reason: 'never fewer than 3 lines',
+        2,
+        reason: 'never fewer than 2 lines',
       );
-      expect(LibraryPdf.blankLinesFor(30), 3);
+      expect(LibraryPdf.blankLinesFor(15), 2);
       expect(
         LibraryPdf.blankLinesFor(100),
-        greaterThan(LibraryPdf.blankLinesFor(30)),
+        greaterThan(LibraryPdf.blankLinesFor(15)),
       );
       expect(
         LibraryPdf.blankLinesFor(5000),
+        10,
+        reason: 'never more than 10 lines',
+      );
+    });
+
+    // At least 6 typical questions with their answers per page (the first
+    // layout fit 3-4). Measured on real curriculum content; pinned here so a
+    // later style tweak cannot quietly bring the old density back.
+    test('fits at least 6 typical questions with answers on a page', () async {
+      final typical = List.generate(
         12,
-        reason: 'never more than 12 lines',
+        (i) => _item(
+          id: i + 1,
+          question: 'بيّن معنى قوله تعالى في الآية رقم ${i + 1} من السورة.',
+          answer:
+              'المقصود بها التوجه بالاعتصام بحبل الله ونبذ الخلافات والفرقة.',
+        ),
+      );
+
+      final bytes = await LibraryPdf.build(
+        subjectName: 'التفسير',
+        questions: typical,
+      );
+      final pages = RegExp(
+        r'/Type\s*/Page[^s]',
+      ).allMatches(latin1.decode(bytes, allowInvalid: true)).length;
+
+      expect(
+        pages,
+        lessThanOrEqualTo(2),
+        reason: '12 questions at 6+ per page',
       );
     });
 

@@ -329,7 +329,8 @@ class Leaderboard {
   final int myPoints;
 
   /// The breakdown behind [myPoints]: questions solved for the first time,
-  /// and counted re-solves (at most one per question per day).
+  /// and re-solves (every replay counts; only a double-submitted duplicate
+  /// is dropped).
   final int myNewQuestions;
   final int myResolvedQuestions;
 

@@ -45,12 +45,27 @@ const PdfColor _tint = PdfColor.fromInt(0xFFF1F6FA);
 
 // Page geometry, in PDF points. Text images are laid out to exactly the width
 // of the box they sit in, so these must match the paddings used below.
-const double _pageMargin = 32;
+//
+// Sized so a page holds AT LEAST 6 typical questions with their answers
+// (measured on real curriculum content: median answer ~54 characters). The
+// earlier, roomier layout fit 3-4 per page. "الإجابة:" and the question type
+// sit on the same line as their text rather than on a line of their own.
+const double _pageMargin = 28;
 const double _contentWidth = 595.28 - _pageMargin * 2; // A4 minus margins
-const double _titleTextWidth = _contentWidth - 16 * 2 - 2; // padding + border
-const double _blockInner = _contentWidth - 14 * 2 - 2;
-const double _questionTextWidth = _blockInner - 22 - 8; // number badge + gap
-const double _answerTextWidth = _blockInner - 10 * 2;
+const double _titlePadding = 10;
+const double _titleTextWidth =
+    _contentWidth - _titlePadding * 2 - 2; // + border
+const double _blockPadding = 9;
+const double _blockGap = 7; // between question blocks
+const double _badge = 18; // the round question number
+const double _answerPadding = 6;
+const double _blockInner = _contentWidth - _blockPadding * 2 - 2;
+const double _questionTextWidth = _blockInner - _badge - 6; // badge + gap
+const double _answerTextWidth = _blockInner - _answerPadding * 2;
+
+/// Line height for every Arabic run. Enough room for tashkeel above and below
+/// (checked on Quranic text), without the extra air the first layout had.
+const double _lineHeight = 1.4;
 
 /// The two library exports.
 enum LibraryPdfMode {
@@ -106,9 +121,9 @@ class LibraryPdf {
   /// than 12.
   @visibleForTesting
   static int blankLinesFor(double modelAnswerHeight) =>
-      ((modelAnswerHeight / _ruleSpacing).ceil() + 1).clamp(3, 12);
+      ((modelAnswerHeight / _ruleSpacing).ceil() + 1).clamp(2, 10);
 
-  static const double _ruleSpacing = 24;
+  static const double _ruleSpacing = 20;
 
   /// The document itself, split out so it can be built and inspected without
   /// touching the platform share sheet.
@@ -139,7 +154,7 @@ class LibraryPdf {
           size: 12,
           color: _muted,
         ),
-        _Run('$subjectName\n', size: 22, color: _brand, bold: true),
+        _Run('$subjectName\n', size: 18, color: _brand, bold: true),
         _Run(
           'عدد الأسئلة: ${questions.length}   •   تاريخ الاستخراج: $exportedOn',
           size: 11,
@@ -164,18 +179,18 @@ class LibraryPdf {
       final item = questions[i];
       final question = await _textImage(
         [
-          _Run('${item.libraryable.typeLabel}\n', size: 9, color: _brand),
-          _Run(item.questionText, size: 13, color: _ink, bold: true),
+          _Run('${item.libraryable.typeLabel} · ', size: 9, color: _brand),
+          _Run(item.questionText, size: 11.5, color: _ink, bold: true),
         ],
         width: _questionTextWidth,
         direction: dir,
       );
       final answer = await _textImage(
         [
-          _Run('الإجابة\n', size: 9, color: _muted),
+          _Run('الإجابة: ', size: 9, color: _muted),
           _Run(
             item.answerText.isEmpty ? 'غير متوفرة' : item.answerText,
-            size: 12,
+            size: 11,
             color: _ink,
           ),
         ],
@@ -191,13 +206,13 @@ class LibraryPdf {
       final answerArea = sheet
           ? _blankAnswerArea(
               await _textImage([
-                _Run('إجابتك:', size: 9, color: _muted),
+                _Run('إجابتك:', size: 8, color: _muted),
               ], direction: dir),
               lines,
             )
           : answer;
       final answerHeight = sheet
-          ? 18 + lines * _ruleSpacing
+          ? 14 + lines * _ruleSpacing
           : _imageHeight(answer);
 
       final block = _questionBlock(i + 1, question, answerArea, blank: sheet);
@@ -208,8 +223,8 @@ class LibraryPdf {
       // A block taller than a page (an extremely long answer) is left free to
       // split, since the only alternative would be failing the whole export.
       final fitsOnAPage =
-          _imageHeight(question) + answerHeight + 70 <
-          PdfPageFormat.a4.height - 72 - 60;
+          _imageHeight(question) + answerHeight + 50 <
+          PdfPageFormat.a4.height - _pageMargin * 2 - 40;
       blocks.add(fitsOnAPage ? pw.Inseparable(child: block) : block);
     }
 
@@ -227,7 +242,12 @@ class LibraryPdf {
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(_pageMargin, 36, _pageMargin, 36),
+        margin: const pw.EdgeInsets.fromLTRB(
+          _pageMargin,
+          _pageMargin,
+          _pageMargin,
+          _pageMargin,
+        ),
         textDirection: direction,
         header: (context) => context.pageNumber == 1
             ? pw.SizedBox()
@@ -235,7 +255,7 @@ class LibraryPdf {
                 alignment: direction == pw.TextDirection.rtl
                     ? pw.Alignment.centerRight
                     : pw.Alignment.centerLeft,
-                margin: const pw.EdgeInsets.only(bottom: 12),
+                margin: const pw.EdgeInsets.only(bottom: 8),
                 child: header,
               ),
         // "صفحة 2 من 5": the two words are images, the numbers real text —
@@ -253,7 +273,7 @@ class LibraryPdf {
         build: (context) => [
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.all(16),
+            padding: const pw.EdgeInsets.all(_titlePadding),
             decoration: pw.BoxDecoration(
               color: _tint,
               borderRadius: pw.BorderRadius.circular(10),
@@ -261,7 +281,7 @@ class LibraryPdf {
             ),
             child: title,
           ),
-          pw.SizedBox(height: 18),
+          pw.SizedBox(height: 10),
           ...blocks,
         ],
       ),
@@ -307,8 +327,8 @@ class LibraryPdf {
   }) {
     return pw.Container(
       width: double.infinity,
-      margin: const pw.EdgeInsets.only(bottom: 14),
-      padding: const pw.EdgeInsets.all(14),
+      margin: const pw.EdgeInsets.only(bottom: _blockGap),
+      padding: const pw.EdgeInsets.all(_blockPadding),
       decoration: pw.BoxDecoration(
         borderRadius: pw.BorderRadius.circular(8),
         border: pw.Border.all(color: PdfColors.grey300, width: 0.7),
@@ -320,8 +340,8 @@ class LibraryPdf {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Container(
-                width: 22,
-                height: 22,
+                width: _badge,
+                height: _badge,
                 alignment: pw.Alignment.center,
                 decoration: const pw.BoxDecoration(
                   color: _brand,
@@ -330,20 +350,20 @@ class LibraryPdf {
                 child: pw.Text(
                   '$number',
                   style: pw.TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: PdfColors.white,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
               ),
-              pw.SizedBox(width: 8),
+              pw.SizedBox(width: 6),
               question,
             ],
           ),
-          pw.SizedBox(height: 10),
+          pw.SizedBox(height: 5),
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.all(10),
+            padding: const pw.EdgeInsets.all(_answerPadding),
             decoration: pw.BoxDecoration(
               // White on the answer sheet: it is written on with a pen.
               color: blank ? PdfColors.white : _tint,
@@ -425,7 +445,7 @@ class LibraryPdf {
             fontWeight: run.bold ? ui.FontWeight.w700 : ui.FontWeight.w400,
             // Room above and below each line for tashkeel, so marks on
             // Quranic text are never clipped by the image edge.
-            height: 1.55,
+            height: _lineHeight,
           ),
         )
         ..addText(run.text)
