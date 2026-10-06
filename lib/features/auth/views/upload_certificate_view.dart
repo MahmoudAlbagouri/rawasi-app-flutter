@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -144,6 +145,8 @@ class _UploadCertificateViewState extends State<UploadCertificateView> {
         if (!mounted) return;
         setState(() {
           _uploadState = UploadState.success;
+          // payment_pending just changed on the server.
+          ProfileRepository.invalidate();
           _countdown = 3;
         });
 

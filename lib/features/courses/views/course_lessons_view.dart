@@ -63,7 +63,10 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
 
   Future<void> _loadPaymentState() async {
     try {
-      final profile = await ProfileRepository().fetchProfile();
+      // Exact after returning from the subscription page; cached otherwise.
+      final profile = await ProfileRepository().fetchProfile(
+        force: _paymentStateLoaded,
+      );
       if (!mounted) return;
       final firstLoad = !_paymentStateLoaded;
       _paymentStateLoaded = true;

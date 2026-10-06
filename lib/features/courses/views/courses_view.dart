@@ -55,7 +55,7 @@ class _CoursesViewState extends State<CoursesView> {
   /// up disagreeing about the same subject.
   Future<void> _reloadCourses() async {
     HomeRepo.invalidate();
-    final next = CoursesRepo().fetchCourses();
+    final next = CoursesRepo().fetchCourses(force: true);
     setState(() => _coursesFuture = next);
     await next.catchError((_) => <Course>[]);
   }

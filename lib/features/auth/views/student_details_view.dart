@@ -28,7 +28,7 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
   }
 
   void _reload() =>
-      setState(() => _future = ProfileRepository().fetchProfile());
+      setState(() => _future = ProfileRepository().fetchProfile(force: true));
 
   @override
   Widget build(BuildContext context) {

@@ -59,30 +59,40 @@ class _StatisticsViewState extends State<StatisticsView> {
   /// produced a raw API message under an "إعادة المحاولة" button that could
   /// never succeed — retrying does not log anybody in. The same two states are
   /// already modelled by AccountGate, which courses_view uses.
-  Future<_StatsPage> _load() async {
+  ///
+  /// The profile and the statistics are requested TOGETHER. They used to be
+  /// one after the other (profile, then stats), so the screen waited for two
+  /// full round trips. The profile still decides: if it gates the student, the
+  /// statistics answer is simply discarded.
+  Future<_StatsPage> _load({bool force = false}) async {
     if (!await isUserSignedIn()) {
       return const _StatsPage(gate: GateReason.signedOut);
     }
 
-    Student? profile;
-    try {
-      profile = await ProfileRepository().fetchProfile();
-    } catch (_) {
-      // Profile itself failed: fall through and let the stats call decide, so
-      // a transient network error still gets the retry button.
-      profile = null;
-    }
+    final profileFuture = ProfileRepository()
+        .fetchProfile(force: force)
+        .then<Student?>((p) => p)
+        // Profile itself failed: fall through and let the stats call decide,
+        // so a transient network error still gets the retry button.
+        .catchError((Object _) => null);
+    final statsFuture = StatsRepo().fetchStats(force: force);
 
+    final profile = await profileFuture;
     if (profile != null) {
       final reason = gateFor(profile);
-      if (reason != null) return _StatsPage(gate: reason);
+      if (reason != null) {
+        // Expected to fail for a gated student (403); not an error to show.
+        statsFuture.ignore();
+        return _StatsPage(gate: reason);
+      }
     }
 
-    return _StatsPage(stats: await StatsRepo().fetchStats());
+    return _StatsPage(stats: await statsFuture);
   }
 
+  /// Pull-to-refresh and "إعادة المحاولة": always fresh from the server.
   void _reload() {
-    setState(() => _future = _load());
+    setState(() => _future = _load(force: true));
   }
 
   @override

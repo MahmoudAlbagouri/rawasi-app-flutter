@@ -29,12 +29,12 @@ enum NavTab {
   /// The screen this tab opens. Kept beside the label so a tab can never be
   /// labelled one thing and route somewhere else.
   Widget get screen => switch (this) {
-        NavTab.home => const HomeView(),
-        NavTab.courses => const CoursesView(),
-        NavTab.library => const SubjectsView(),
-        NavTab.stats => const StatisticsView(),
-        NavTab.account => ProfileView(),
-      };
+    NavTab.home => const HomeView(),
+    NavTab.courses => const CoursesView(),
+    NavTab.library => const SubjectsView(),
+    NavTab.stats => const StatisticsView(),
+    NavTab.account => ProfileView(),
+  };
 }
 
 class CustomBottomNavBar extends StatelessWidget {

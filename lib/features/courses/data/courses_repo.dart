@@ -1,13 +1,33 @@
+import 'package:rawasi_app_n/core/network/api_cache.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
 import 'package:rawasi_app_n/features/courses/data/question.dart';
+import 'package:rawasi_app_n/features/home/data/home_data.dart';
+import 'package:rawasi_app_n/features/stats/data/stats_repo.dart';
 
 class CoursesRepo {
   final ApiServices _api = ApiServices();
 
-  Future<List<Course>> fetchCourses() async {
+  /// The course list (with per-course progress) for 30 s — read by home and
+  /// المواد, both rebuilt on every tab switch. Cleared whenever a question
+  /// or lesson is completed.
+  static final ApiCache<List<Course>> _coursesCache = ApiCache(
+    const Duration(seconds: 30),
+  );
+
+  /// Progress changed: everything that shows it must reload next time.
+  static void invalidateProgress() {
+    _coursesCache.invalidate();
+    StatsRepo.invalidate();
+    HomeRepo.invalidate();
+  }
+
+  Future<List<Course>> fetchCourses({bool force = false}) =>
+      _coursesCache.get(_loadCourses, force: force);
+
+  Future<List<Course>> _loadCourses() async {
     final response = await _api.get('/courses');
     if (response is ApiError) throw response;
     if (response is Map<String, dynamic> && response['success'] == true) {
@@ -55,6 +75,7 @@ class CoursesRepo {
     });
     if (response is ApiError) throw response;
     if (response is Map<String, dynamic> && response['success'] == true) {
+      invalidateProgress();
       return response['data'] as Map<String, dynamic>;
     }
     throw ApiError(
@@ -74,6 +95,7 @@ class CoursesRepo {
     });
     if (response is ApiError) throw response;
     if (response is Map<String, dynamic> && response['success'] == true) {
+      invalidateProgress();
       return response['data'] as Map<String, dynamic>;
     }
     throw ApiError(

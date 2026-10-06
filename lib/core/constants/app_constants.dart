@@ -1,8 +1,6 @@
 class AppConstants {
-  static const int animationDuration =
-      300; // بالملي ثانية
-  static const String appName =
-      'تطبيق رواسي';
+  static const int animationDuration = 300; // بالملي ثانية
+  static const String appName = 'تطبيق رواسي';
 
   /// The introductory "how the app works" video.
   ///

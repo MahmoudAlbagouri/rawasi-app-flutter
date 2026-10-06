@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
+import 'package:rawasi_app_n/core/network/api_cache.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/core/network/api_exceptions.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
@@ -32,6 +33,8 @@ class AuthRepo {
       }
 
       await PrefHelper.saveToken(token);
+      // A new session: nothing cached for the previous one may be reused.
+      ApiCache.invalidateAll();
 
       // Both login and OTP sign-in come through here, so this is the one place
       // a fresh session registers the device for push notifications. Not
@@ -163,6 +166,9 @@ class AuthRepo {
         final success = response['success'] as bool? ?? false;
         final data = response['data'] as Map<String, dynamic>?;
         if (success && data != null) {
+          // Completing the profile activates the account — what the student
+          // may open changes, so drop everything cached for them.
+          ApiCache.invalidateAll();
           return Student.fromJson(data);
         }
         throw ApiError(message: response['message'] ?? 'فشل استكمال البيانات');
@@ -180,6 +186,9 @@ class AuthRepo {
   // Logout
   // ---------------------------------------------------------------------------
   Future<void> logout() async {
+    // Nothing loaded for this student may be shown to whoever signs in next.
+    ApiCache.invalidateAll();
+
     // First, while the session is still valid: removing this device from the
     // backend is an authenticated request. Never throws, and gives up after a
     // few seconds, so it cannot block signing out.

@@ -172,9 +172,9 @@ class HomeRepo {
     // others down with it — Future.wait would otherwise fail the whole batch
     // on the first error.
     final results = await Future.wait([
-      _attempt(() => ProfileRepository().fetchProfile()),
-      _attempt(() => StatsRepo().fetchStats()),
-      _attempt(() => CoursesRepo().fetchCourses()),
+      _attempt(() => ProfileRepository().fetchProfile(force: force)),
+      _attempt(() => StatsRepo().fetchStats(force: force)),
+      _attempt(() => CoursesRepo().fetchCourses(force: force)),
       _attempt(() => LibraryRepo().fetchSubjects()),
     ]);
 

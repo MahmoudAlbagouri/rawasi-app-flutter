@@ -176,7 +176,8 @@ class _SubscriptionViewState extends State<SubscriptionView> {
 
     final Student profile;
     try {
-      profile = await ProfileRepository().fetchProfile();
+      // Exact, never cached: this page exists to show paid / pending / free.
+      profile = await ProfileRepository().fetchProfile(force: true);
     } catch (_) {
       return const _Page();
     }

@@ -26,6 +26,19 @@ class ProfileView extends StatefulWidget {
 class _ProfileViewState extends State<ProfileView> {
   final AuthRepo _authRepo = AuthRepo();
 
+  /// Created ONCE. They used to be created inside build(), so every rebuild
+  /// of this screen (keyboard, layout change, a parent setState) restarted
+  /// the sign-in check and fired a fresh /profile request.
+  late final Future<bool> _signedInFuture;
+  late final Future<Student?> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _signedInFuture = isUserSignedIn();
+    _profileFuture = _fetchProfile();
+  }
+
   Future<void> _logout(BuildContext context) async {
     try {
       await _authRepo.logout();
@@ -67,7 +80,7 @@ class _ProfileViewState extends State<ProfileView> {
       backgroundColor: AppColors.white,
       body: BrandBackdrop(
         child: FutureBuilder<bool>(
-          future: isUserSignedIn(),
+          future: _signedInFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -78,7 +91,7 @@ class _ProfileViewState extends State<ProfileView> {
             if (isSignedIn) {
               // جلب بيانات الملف الشخصي
               return FutureBuilder<Student?>(
-                future: _fetchProfile(),
+                future: _profileFuture,
                 builder: (context, profileSnapshot) {
                   if (profileSnapshot.connectionState ==
                       ConnectionState.waiting) {
