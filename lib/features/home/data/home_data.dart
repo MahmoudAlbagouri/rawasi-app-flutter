@@ -168,6 +168,36 @@ class HomeRepo {
       return _cache = HomeData.signedOut();
     }
 
+    // A load for this student is already running — typically the one the
+    // splash screen started — so share it rather than sending everything
+    // twice.
+    final pending = _pending;
+    if (!force && pending != null && _pendingToken == token) return pending;
+
+    final request = _fetch(token, force: force);
+    _pending = request;
+    _pendingToken = token;
+    try {
+      return await request;
+    } finally {
+      if (identical(_pending, request)) _pending = null;
+    }
+  }
+
+  /// The load in flight, and whose it is.
+  static Future<HomeData>? _pending;
+  static String? _pendingToken;
+
+  /// Starts loading home in the background without waiting for it.
+  ///
+  /// The splash screen calls this: it is on screen for 3 s anyway, which is
+  /// enough to open the connection to the server (and retry it if the server
+  /// drops the first attempt) before home appears. Never throws.
+  static void prefetch() {
+    HomeRepo().load().ignore();
+  }
+
+  Future<HomeData> _fetch(String token, {bool force = false}) async {
     // All four at once. Each is wrapped so one rejection cannot take the
     // others down with it — Future.wait would otherwise fail the whole batch
     // on the first error.

@@ -22,7 +22,9 @@ void main() {
       expect(await PrefHelper.getToken(), 'token-A');
 
       // Change what storage holds underneath: a memory read does not notice.
-      FlutterSecureStorage.setMockInitialValues({'auth_token': 'changed-on-disk'});
+      FlutterSecureStorage.setMockInitialValues({
+        'auth_token': 'changed-on-disk',
+      });
       expect(await PrefHelper.getToken(), 'token-A');
     });
 
@@ -65,7 +67,11 @@ void main() {
     });
 
     test('screens asking at the same moment share ONE request', () async {
-      final answers = await Future.wait([cache.get(load), cache.get(load), cache.get(load)]);
+      final answers = await Future.wait([
+        cache.get(load),
+        cache.get(load),
+        cache.get(load),
+      ]);
       expect(answers.toSet(), {'value-1'});
       expect(loads, 1);
     });
@@ -79,7 +85,10 @@ void main() {
     });
 
     test('a failure is not cached — the next call tries again', () async {
-      await expectLater(cache.get(() async => throw Exception('offline')), throwsException);
+      await expectLater(
+        cache.get(() async => throw Exception('offline')),
+        throwsException,
+      );
       expect(await cache.get(load), 'value-1');
     });
 
@@ -100,36 +109,61 @@ void main() {
   });
 
   group('dropped connections', () {
-    DioException failure(DioExceptionType type, {String method = 'GET', Object? data}) =>
-        DioException(
-          requestOptions: RequestOptions(path: '/x', method: method, data: data),
-          type: type,
-        );
+    DioException failure(
+      DioExceptionType type, {
+      String method = 'GET',
+      Object? data,
+    }) => DioException(
+      requestOptions: RequestOptions(path: '/x', method: method, data: data),
+      type: type,
+    );
 
     test('a connection that never opened is retried, for any method', () {
-      expect(DioClient.shouldRetry(failure(DioExceptionType.connectionTimeout), 0), isTrue);
       expect(
-        DioClient.shouldRetry(failure(DioExceptionType.connectionTimeout, method: 'POST'), 0),
+        DioClient.shouldRetry(failure(DioExceptionType.connectionTimeout), 0),
+        isTrue,
+      );
+      expect(
+        DioClient.shouldRetry(
+          failure(DioExceptionType.connectionTimeout, method: 'POST'),
+          0,
+        ),
         isTrue,
         reason: 'the request never left the phone, so repeating it is safe',
       );
     });
 
     test('a mid-request drop is retried only for a read', () {
-      expect(DioClient.shouldRetry(failure(DioExceptionType.connectionError), 0), isTrue);
       expect(
-        DioClient.shouldRetry(failure(DioExceptionType.connectionError, method: 'POST'), 0),
+        DioClient.shouldRetry(failure(DioExceptionType.connectionError), 0),
+        isTrue,
+      );
+      expect(
+        DioClient.shouldRetry(
+          failure(DioExceptionType.connectionError, method: 'POST'),
+          0,
+        ),
         isFalse,
         reason: 'the server may already have acted on it',
       );
     });
 
     test('never retries a server answer, a slow server, or an upload', () {
-      expect(DioClient.shouldRetry(failure(DioExceptionType.badResponse), 0), isFalse);
-      expect(DioClient.shouldRetry(failure(DioExceptionType.receiveTimeout), 0), isFalse);
+      expect(
+        DioClient.shouldRetry(failure(DioExceptionType.badResponse), 0),
+        isFalse,
+      );
+      expect(
+        DioClient.shouldRetry(failure(DioExceptionType.receiveTimeout), 0),
+        isFalse,
+      );
       expect(
         DioClient.shouldRetry(
-          failure(DioExceptionType.connectionTimeout, method: 'POST', data: FormData()),
+          failure(
+            DioExceptionType.connectionTimeout,
+            method: 'POST',
+            data: FormData(),
+          ),
           0,
         ),
         isFalse,
@@ -139,13 +173,28 @@ void main() {
 
     test('gives up after the retry limit', () {
       expect(
-        DioClient.shouldRetry(failure(DioExceptionType.connectionTimeout), DioClient.maxRetries),
+        DioClient.shouldRetry(
+          failure(DioExceptionType.connectionTimeout),
+          DioClient.maxRetries,
+        ),
         isFalse,
       );
     });
 
-    test('connecting no longer waits forever', () {
-      expect(DioClient().dio.options.connectTimeout, const Duration(seconds: 8));
-    });
+    test(
+      'a dropped connect is abandoned quickly, on ONE kept-alive connection',
+      () {
+        expect(DioClient.connectTimeout, const Duration(seconds: 3));
+        expect(DioClient.maxConnectionsPerHost, 1);
+        expect(
+          DioClient.idleTimeout,
+          greaterThan(const Duration(seconds: 3)),
+          reason: "Dio's 3 s default reopened the connection between screens",
+        );
+        // Not on Dio's options: there it would also time requests queued for
+        // the shared connection. The limit is applied to the socket connect.
+        expect(DioClient().dio.options.connectTimeout, isNull);
+      },
+    );
   });
 }

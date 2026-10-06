@@ -1,26 +1,48 @@
+import 'dart:io'
+    show ConnectionTask, HttpClient, SecureSocket, Socket, SocketException;
+
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart' show IOHttpClientAdapter;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 
-/// The one shared Dio. A single instance means one connection pool, so HTTP
-/// keep-alive reuses connections instead of paying TCP + TLS on each request.
+/// The one shared Dio, over ONE kept-alive connection to the server.
 ///
-/// TIMEOUTS AND RETRY. Measured against production, a share of connections to
-/// the server never complete. With no timeout, a screen waiting on one of
-/// those sat on its spinner until Android gave up (30 s or more). Now:
-///   - connecting gives up after [connectTimeout];
-///   - a request that never reached the server is retried automatically
-///     (twice, with a short pause), so one dropped connection costs about a
-///     second instead of half a minute.
-/// See [shouldRetry] for exactly which failures are retried, and why that is
-/// safe.
+/// WHY ONE CONNECTION (measured against production, 2026-10-06):
+///   - About 1 in 3 attempts to OPEN a new connection to rawasi.info is
+///     silently dropped, while requests on a connection that is already open
+///     are fast and reliable (0.12-0.4 s each).
+///   - Home sent its 4 requests at once, so the app opened 4 new connections
+///     together — in testing at least one was dropped EVERY time, and the
+///     screen waited out the connect timeout. Other screens reused an open
+///     connection, which is why only home was slow.
+///   - So every request now shares a single kept-alive connection
+///     ([maxConnectionsPerHost] = 1). Requests queue on it (~0.2-0.4 s each)
+///     instead of each gambling on a new connection, and it is kept open
+///     between screens ([idleTimeout]).
+///
+/// TIMEOUTS AND RETRY. A dropped connection attempt is abandoned after
+/// [connectTimeout] (a healthy connect takes ~70 ms, so 3 s is generous even
+/// on mobile data) and retried automatically. Measured: 4 requests went from
+/// 15 s+ every time to about 1 s typically. See [shouldRetry] for exactly
+/// which failures are retried, and why that is safe.
+///
+/// The underlying fault is on the server side (dropped TCP connections) and
+/// should still be raised with the host; this keeps the app usable meanwhile.
 class DioClient {
-  static const Duration connectTimeout = Duration(seconds: 8);
+  static const Duration connectTimeout = Duration(seconds: 3);
   static const Duration receiveTimeout = Duration(seconds: 25);
   // Long enough for a receipt photo over a slow mobile connection.
   static const Duration sendTimeout = Duration(seconds: 60);
 
-  static const int maxRetries = 2;
+  static const int maxRetries = 3;
+
+  /// One connection, reused by every request — see the class comment.
+  static const int maxConnectionsPerHost = 1;
+
+  /// How long the open connection is kept between requests, so moving from
+  /// screen to screen does not reopen it.
+  static const Duration idleTimeout = Duration(seconds: 90);
 
   static final Dio _dio = _create();
 
@@ -31,10 +53,22 @@ class DioClient {
       BaseOptions(
         baseUrl: "https://rawasi.info/api/student",
         headers: {"Accept": 'application/json'},
-        connectTimeout: connectTimeout,
+        // No connectTimeout here, on purpose: Dio applies it to the whole wait
+        // for a connection — INCLUDING time queued behind another request on
+        // the single connection — so a request waiting its turn would "time
+        // out" for nothing. The real connect limit is in [_connect] below.
         receiveTimeout: receiveTimeout,
         sendTimeout: sendTimeout,
       ),
+    );
+
+    dio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () => HttpClient()
+        ..maxConnectionsPerHost = maxConnectionsPerHost
+        // Dio's default is 3 s, which closed the connection between almost
+        // every pair of screens — and each reopen risked being dropped.
+        ..idleTimeout = idleTimeout
+        ..connectionFactory = _connect,
     );
 
     dio.interceptors.add(
@@ -58,7 +92,7 @@ class DioClient {
 
           if (shouldRetry(error, attempt)) {
             await Future<void>.delayed(
-              Duration(milliseconds: 400 * (attempt + 1)),
+              Duration(milliseconds: 250 * (attempt + 1)),
             );
             options.extra['retry_attempt'] = attempt + 1;
             try {
@@ -74,6 +108,39 @@ class DioClient {
     );
 
     return dio;
+  }
+
+  /// Opens one TCP (+ TLS for https) connection, giving up after
+  /// [connectTimeout]. Only the connect itself is timed — never time spent
+  /// queued for the shared connection.
+  ///
+  /// HttpClient leaves TLS to a custom factory for direct https, so the
+  /// secure socket is opened here. The timeout raises the same "timed out"
+  /// SocketException HttpClient would, which Dio reports as a
+  /// connectionTimeout — retried by [shouldRetry], since nothing was sent.
+  static Future<ConnectionTask<Socket>> _connect(
+    Uri uri,
+    String? proxyHost,
+    int? proxyPort,
+  ) async {
+    final host = proxyHost ?? uri.host;
+    final port = proxyPort ?? uri.port;
+    // Through a proxy, HttpClient secures the tunnel itself.
+    final ConnectionTask<Socket> task =
+        uri.scheme == 'https' && proxyHost == null
+        ? await SecureSocket.startConnect(host, port)
+        : await Socket.startConnect(host, port);
+
+    return ConnectionTask.fromSocket(
+      task.socket.timeout(
+        connectTimeout,
+        onTimeout: () {
+          task.cancel();
+          throw SocketException('Connection timed out after $connectTimeout');
+        },
+      ),
+      task.cancel,
+    );
   }
 
   /// Whether a failed request is retried.

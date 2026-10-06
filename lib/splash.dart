@@ -1,6 +1,7 @@
 // lib/features/splash/splash_view.dart
 
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/features/home/data/home_data.dart';
 import 'package:rawasi_app_n/features/home/views/home_view.dart';
 
 class SplashView extends StatefulWidget {
@@ -20,6 +21,11 @@ class _SplashViewState extends State<SplashView>
   @override
   void initState() {
     super.initState();
+
+    // Use the 3 s the splash is on screen: open the connection to the server
+    // and load home's data now, so home appears with it ready instead of
+    // starting from nothing. Fire-and-forget — the splash never waits on it.
+    HomeRepo.prefetch();
 
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1200),
