@@ -1,6 +1,7 @@
 // lib/features/auth/views/forgot_password/forgot_password_phone_view.dart
 
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
@@ -18,7 +19,8 @@ class ForgotPasswordPhoneView extends StatefulWidget {
       _ForgotPasswordPhoneViewState();
 }
 
-class _ForgotPasswordPhoneViewState extends State<ForgotPasswordPhoneView> {
+class _ForgotPasswordPhoneViewState extends State<ForgotPasswordPhoneView>
+    with SecureScreen {
   final TextEditingController _phoneController = TextEditingController();
   final AuthRepo _authRepo = AuthRepo();
   bool _isLoading = false;

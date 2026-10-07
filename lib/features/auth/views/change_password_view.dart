@@ -3,6 +3,7 @@
 import 'package:dio/dio.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
@@ -16,7 +17,8 @@ class ChangePasswordView extends StatefulWidget {
   State<ChangePasswordView> createState() => _ChangePasswordViewState();
 }
 
-class _ChangePasswordViewState extends State<ChangePasswordView> {
+class _ChangePasswordViewState extends State<ChangePasswordView>
+    with SecureScreen {
   final TextEditingController _currentPasswordController =
       TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();

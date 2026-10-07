@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
@@ -21,7 +22,8 @@ class ForgotPasswordOtpView extends StatefulWidget {
   State<ForgotPasswordOtpView> createState() => _ForgotPasswordOtpViewState();
 }
 
-class _ForgotPasswordOtpViewState extends State<ForgotPasswordOtpView> {
+class _ForgotPasswordOtpViewState extends State<ForgotPasswordOtpView>
+    with SecureScreen {
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
   int _remainingSeconds = 60;

@@ -5,6 +5,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
@@ -24,7 +25,8 @@ class RegisterStep3View extends StatefulWidget {
   State<RegisterStep3View> createState() => _RegisterStep3ViewState();
 }
 
-class _RegisterStep3ViewState extends State<RegisterStep3View> {
+class _RegisterStep3ViewState extends State<RegisterStep3View>
+    with SecureScreen {
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
   int _remainingSeconds = 60;

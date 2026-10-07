@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// JWT storage, backed by the OS keystore — with an in-memory copy.
 ///
@@ -26,7 +27,39 @@ class PrefHelper {
       encryptedSharedPreferences: true,
       resetOnError: true,
     ),
+    iOptions: IOSOptions(
+      // Readable only after the first unlock since boot, and never synced to
+      // iCloud or restored onto a different device.
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
+
+  /// Marker in ordinary prefs, which ARE cleared on uninstall.
+  static const String _installMarkerKey = 'secure_storage_initialised';
+
+  /// Wipes the keystore if this is the first run after a fresh install.
+  ///
+  /// iOS keeps Keychain items when an app is deleted, so a reinstall would
+  /// otherwise start signed in as whoever used the phone before — including
+  /// on a resold or handed-down device. The marker lives in plain prefs
+  /// precisely because those DO go away with the app: marker missing means
+  /// fresh install, so anything still in the keystore is stale and is dropped.
+  ///
+  /// Safe to call on every launch; it only acts once per install. Never
+  /// throws — a storage fault must not stop the app from starting.
+  static Future<void> clearIfFreshInstall() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_installMarkerKey) ?? false) return;
+
+      await _storage.deleteAll();
+      _token = null;
+      _loaded = true;
+      await prefs.setBool(_installMarkerKey, true);
+    } catch (_) {
+      // Leaving the marker unset just means this runs again next launch.
+    }
+  }
 
   /// The token as last read or written. Meaningful only once [_loaded].
   static String? _token;

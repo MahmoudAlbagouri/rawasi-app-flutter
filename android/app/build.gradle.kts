@@ -29,12 +29,12 @@ android {
         // Required by flutter_local_notifications (v10+), which shows push
         // notifications as phone notifications while the app is open.
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -75,6 +75,17 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+
+            // R8: strips unused code and resources and renames what is left,
+            // so a released APK is markedly harder to read than the plain
+            // bytecode it used to ship. Flutter's own Dart code is obfuscated
+            // separately, by building with --obfuscate (see README).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

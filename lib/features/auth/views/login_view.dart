@@ -2,6 +2,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
@@ -23,7 +24,7 @@ class LoginView extends StatefulWidget {
   State<LoginView> createState() => _LoginViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
+class _LoginViewState extends State<LoginView> with SecureScreen {
   late TextEditingController loginController;
   late TextEditingController passwordController;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();

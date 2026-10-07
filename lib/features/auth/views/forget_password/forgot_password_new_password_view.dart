@@ -1,6 +1,7 @@
 // lib/features/auth/views/forgot_password/forgot_password_new_password_view.dart
 
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
@@ -28,7 +29,8 @@ class ForgotPasswordNewPasswordView extends StatefulWidget {
 }
 
 class _ForgotPasswordNewPasswordViewState
-    extends State<ForgotPasswordNewPasswordView> {
+    extends State<ForgotPasswordNewPasswordView>
+    with SecureScreen {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();

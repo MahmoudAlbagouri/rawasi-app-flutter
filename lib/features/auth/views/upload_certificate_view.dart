@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:rawasi_app_n/shared/secure_screen.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/features/auth/data/subscription_plan.dart';
 import 'package:flutter/services.dart';
@@ -37,7 +38,8 @@ class UploadCertificateView extends StatefulWidget {
   State<UploadCertificateView> createState() => _UploadCertificateViewState();
 }
 
-class _UploadCertificateViewState extends State<UploadCertificateView> {
+class _UploadCertificateViewState extends State<UploadCertificateView>
+    with SecureScreen {
   XFile? _image;
   UploadState _uploadState = UploadState.idle;
   String _errorMessage = '';

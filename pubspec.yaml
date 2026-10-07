@@ -60,6 +60,7 @@ dependencies:
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
   flutter_local_notifications: ^20.1.0
+  screen_protector: ^1.5.3
 
 dev_dependencies:
   flutter_test:

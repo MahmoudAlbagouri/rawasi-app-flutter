@@ -11,8 +11,9 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
         android:maxSdkVersion="28" />
     
-    <!-- إذن الكاميرا (اختياري - لتمكين التقاط صورة مستقبلاً) -->
-    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- No CAMERA permission: the receipt upload picks from the gallery
+         (ImageSource.gallery) and never opens the camera. Asking for a
+         permission the app does not use costs trust at install time. -->
 
     <application
         android:label="Rawasi"
@@ -20,7 +21,8 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false"
         android:allowBackup="false"
-        android:fullBackupContent="false">
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         
         <activity
             android:name=".MainActivity"
