@@ -4,6 +4,8 @@ import 'dart:io'
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart' show IOHttpClientAdapter;
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:rawasi_app_n/core/network/api_exceptions.dart';
+import 'package:rawasi_app_n/core/network/network_status.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 
 /// The one shared Dio, over ONE kept-alive connection to the server.
@@ -81,6 +83,13 @@ class DioClient {
           }
           return handler.next(options);
         },
+        // Every successful response proves the connection works, whatever
+        // was wrong with an earlier request - so the banner clears the
+        // moment anything gets through, not only on a dedicated retry.
+        onResponse: (response, handler) {
+          NetworkStatus.isOffline.value = false;
+          handler.next(response);
+        },
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
             await PrefHelper.clearToken();
@@ -98,8 +107,15 @@ class DioClient {
             try {
               return handler.resolve(await dio.fetch(options));
             } on DioException catch (e) {
-              return handler.next(e);
+              error = e;
             }
+          }
+
+          // Retries are exhausted (or never applied) and the request still
+          // did not reach the server: tell the rest of the app so, instead
+          // of leaving every screen to guess from its own error message.
+          if (ApiExceptions.isConnectivityIssue(error)) {
+            NetworkStatus.isOffline.value = true;
           }
 
           return handler.next(error);

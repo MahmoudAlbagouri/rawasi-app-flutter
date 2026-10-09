@@ -44,40 +44,62 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gray200,
-            spreadRadius: 4,
-            blurRadius: 15,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        currentIndex: current.index,
-        selectedItemColor: AppColors.brandPrimary,
-        unselectedItemColor: AppColors.gray600,
-        type: BottomNavigationBarType.fixed,
-        // Five Arabic labels have to fit on a narrow phone without wrapping.
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        onTap: (index) {
-          final tab = NavTab.values[index];
-          if (tab == current) return;
+    return PopScope(
+      // THE FIX for "back exits from any inner page": tab switches use
+      // pushReplacement (below), which never leaves a previous tab to pop
+      // back into — so by the time the student is looking at a tab's root
+      // screen, that screen is very often the only route left, and a plain
+      // back press used to hand straight to the OS, closing the app.
+      //
+      // `Navigator.canPop(context)` covers a tab root that WAS reached by a
+      // normal push (home's "عرض الكل" links push a tab rather than
+      // replacing it) — there, something real is underneath and the back
+      // press should just reveal it, not detour through a second Home.
+      // Only when neither is true do we redirect: no route below, and this
+      // is not the one tab allowed to exit from.
+      canPop: current == NavTab.home || Navigator.canPop(context),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => NavTab.home.screen),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.gray200,
+              spreadRadius: 4,
+              blurRadius: 15,
+              offset: const Offset(0, -1),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          currentIndex: current.index,
+          selectedItemColor: AppColors.brandPrimary,
+          unselectedItemColor: AppColors.gray600,
+          type: BottomNavigationBarType.fixed,
+          // Five Arabic labels have to fit on a narrow phone without wrapping.
+          selectedFontSize: 10,
+          unselectedFontSize: 10,
+          onTap: (index) {
+            final tab = NavTab.values[index];
+            if (tab == current) return;
 
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => tab.screen),
-          );
-        },
-        items: [
-          for (final tab in NavTab.values)
-            BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
-        ],
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => tab.screen),
+            );
+          },
+          items: [
+            for (final tab in NavTab.values)
+              BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
+          ],
+        ),
       ),
     );
   }

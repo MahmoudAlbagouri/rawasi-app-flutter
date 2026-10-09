@@ -45,6 +45,7 @@ import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/custom-snack.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
 
 class HomeView extends StatefulWidget {
@@ -161,10 +162,32 @@ class _HomeViewState extends State<HomeView> {
     ),
   );
 
-  Future<void> _openCourses(Student? profile) async {
-    if (profile == null) return _open(const LoginView());
+  /// [isSignedIn] is the actual token check, independent of whether the
+  /// profile request itself succeeded.
+  ///
+  /// THE BUG THIS FIXES: this used to decide "go to login" from `profile ==
+  /// null` alone. A signed-in student's profile fetch can fail for reasons
+  /// that have nothing to do with being signed in — most commonly no
+  /// connection — and `_fetch` in home_data.dart swallows that into a null
+  /// profile on purpose (the same path handles the ordinary 403 for a student
+  /// awaiting activation). Reading "no profile" as "not signed in" sent an
+  /// offline student straight to the login screen, which is the "must log in"
+  /// students were seeing while offline.
+  Future<void> _openCourses(bool isSignedIn, Student? profile) async {
+    if (!isSignedIn) return _open(const LoginView());
+
+    if (profile == null) {
+      _snack('تحقق من اتصال الإنترنت وحاول مرة أخرى');
+      return;
+    }
+
     if (gateFor(profile) != null) return _openPendingStep(profile);
     await _open(const CoursesView());
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(customSnack(message));
   }
 
   // ---------------------------------------------------------------------------
@@ -217,9 +240,17 @@ class _HomeViewState extends State<HomeView> {
 
     // "ضيف" is a statement about who the student is, so it may only be made
     // once we know. While loading, greet without naming anyone.
+    //
+    // A missing name is NOT the same as being a guest: `data.isSignedIn` is
+    // the token check, `name` can be null even for a signed-in student whose
+    // profile fetch failed (e.g. no connection) — see _openCourses for the
+    // same distinction. Calling that student "ضيف" was the other half of the
+    // "forced login" bug: it told a signed-in student they were not one.
     final greetingName = data.isLoading
         ? null
-        : ((name == null || name.isEmpty) ? 'ضيف' : name);
+        : (!data.isSignedIn
+              ? 'ضيف'
+              : ((name == null || name.isEmpty) ? null : name));
 
     return [
       _Greeting(name: greetingName),
@@ -354,7 +385,7 @@ class _HomeViewState extends State<HomeView> {
     final courses = data.courses ?? const [];
 
     if (courses.isEmpty) {
-      _openCourses(data.profile);
+      _openCourses(data.isSignedIn, data.profile);
 
       return;
     }
@@ -406,7 +437,7 @@ class _HomeViewState extends State<HomeView> {
       HomeSectionTitle(
         title: 'المواد الدراسية',
         actionLabel: 'عرض الكل',
-        onAction: () => _openCourses(data.profile),
+        onAction: () => _openCourses(data.isSignedIn, data.profile),
       ),
       const Gap(12),
       _animated(300, SubjectsGrid(tiles: tiles, onOpen: _openSubject)),
@@ -447,7 +478,7 @@ class _HomeViewState extends State<HomeView> {
                   if (hasCourses) {
                     _openSubject(courses!.first);
                   } else {
-                    _openCourses(data.profile);
+                    _openCourses(data.isSignedIn, data.profile);
                   }
                 },
               )

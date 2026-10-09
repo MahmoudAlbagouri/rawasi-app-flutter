@@ -34,6 +34,19 @@ class CourseLessonsView extends StatefulWidget {
   static bool showAllowanceNotice(int? freeLimit, int total) =>
       freeLimit != null && total > freeLimit;
 
+  /// Whether to show the "بعض الدروس خاصة بالشعبة الأدبية" notice.
+  ///
+  /// Only 2nd and 3rd year secondary have a science/literature split at all
+  /// (1st year/البكالوريا has none — `Lesson.schoolBranch` is always 'both'
+  /// there, so a science student never sees a gap). A lesson exclusive to
+  /// الأدبي is invisible to a science student (Lesson::scopeForStudent on the
+  /// backend), so a subject can start at lesson 2 with nothing missing —
+  /// without this notice that reads as content gone astray rather than
+  /// content that was never theirs.
+  static bool showStreamNotice(String? academicYear, String? schoolBranch) =>
+      (academicYear == '2' || academicYear == '3') &&
+      schoolBranch == 'science';
+
   @override
   State<CourseLessonsView> createState() => _CourseLessonsViewState();
 }
@@ -47,6 +60,11 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
   /// instead of asking the student to pay a second time.
   bool _paymentPending = false;
   bool _freePlanExpired = false;
+
+  /// The profile's own academic_year/school_branch, read once alongside the
+  /// payment state (same request, no second round trip) so the stream notice
+  /// can decide whether it applies.
+  bool _showStreamNotice = false;
 
   @override
   void initState() {
@@ -73,6 +91,10 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
       setState(() {
         _paymentPending = profile.paymentPending;
         _freePlanExpired = profile.freePlanExpired;
+        _showStreamNotice = CourseLessonsView.showStreamNotice(
+          profile.academicYear,
+          profile.schoolBranch,
+        );
       });
       // Mandatory redirect: opening a course after the 15 days are over goes
       // to the subscriptions page. Only on opening, not after every refresh.
@@ -167,17 +189,25 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                 trialEnded ||
                 CourseLessonsView.showAllowanceNotice(freeLimit, total);
 
+            // Leading, non-lesson rows: the allowance notice first (it is
+            // about what to do next), then the stream notice (it is about
+            // what is on screen below it).
+            final leadingRows =
+                (capped ? 1 : 0) + (_showStreamNotice ? 1 : 0);
+
             return ListView.separated(
               padding: const EdgeInsets.all(16),
-              // One extra leading row for the allowance notice.
-              itemCount: lessons.length + (capped ? 1 : 0),
+              itemCount: lessons.length + leadingRows,
               separatorBuilder: (context, index) => const Gap(12),
               itemBuilder: (context, index) {
                 if (capped && index == 0) {
                   return _freeAllowanceNotice(freeLimit, total, trialEnded);
                 }
+                if (_showStreamNotice && index == (capped ? 1 : 0)) {
+                  return _streamNotice();
+                }
 
-                return _lessonCard(lessons[index - (capped ? 1 : 0)]);
+                return _lessonCard(lessons[index - leadingRows]);
               },
             );
           },
@@ -241,6 +271,37 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
             const Icon(Icons.chevron_left, color: AppColors.brandPrimary),
           ],
         ),
+      ),
+    );
+  }
+
+  /// "لو لقيت دروسًا ناقصة من التسلسل فهي ليست جزءًا من منهجك" — 2nd/3rd year
+  /// science students only. Not tappable: there is nothing to do about it,
+  /// just something worth knowing before the numbering looks wrong.
+  Widget _streamNotice() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.gray100,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.gray300),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: AppColors.gray600, size: 22),
+          const Gap(12),
+          Expanded(
+            child: CustomText(
+              text:
+                  'إذا وجدت دروسًا مفقودة من التسلسل، فهي ليست جزءًا من منهجك '
+                  '— فبعض الدروس خاصة بالشعبة الأدبية فقط.',
+              color: AppColors.gray700,
+              size: 13,
+              weight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

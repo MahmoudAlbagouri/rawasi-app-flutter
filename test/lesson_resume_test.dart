@@ -185,4 +185,32 @@ void main() {
       expect(questions.length, 10);
     });
   });
+
+  group('isFullReplay', () {
+    // resumeLesson() cannot tell a caller this on its own - its return shape
+    // is identical for "nothing done" and "a replay is starting". This is the
+    // one thing lesson_flow_view.dart needs that resumeLesson()'s shape alone
+    // does not give it, to know when to even look for a saved replay sitting.
+    test('every question completed is a replay', () {
+      expect(isFullReplay(_lesson(total: 20, done: 20)), isTrue);
+    });
+
+    test('a fresh lesson is not a replay', () {
+      expect(isFullReplay(_lesson(total: 20, done: 0)), isFalse);
+    });
+
+    test('a part-finished lesson is not a replay', () {
+      expect(isFullReplay(_lesson(total: 20, done: 19)), isFalse);
+    });
+
+    test('an empty lesson is not a replay', () {
+      // Otherwise `questions.every(...)` on an empty list (vacuously true)
+      // would call a lesson with nothing uploaded yet a "replay".
+      expect(isFullReplay(const []), isFalse);
+    });
+
+    test('a single completed question is a replay', () {
+      expect(isFullReplay(_lesson(total: 1, done: 1)), isTrue);
+    });
+  });
 }

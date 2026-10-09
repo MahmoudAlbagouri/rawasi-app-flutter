@@ -13,10 +13,13 @@
 // it into "سهل". Completing the last one completes the lesson and unlocks the
 // next, which is exactly the old workflow's end state.
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
+import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 import 'package:rawasi_app_n/features/auth/views/subscription_view.dart';
 import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
@@ -24,10 +27,34 @@ import 'package:rawasi_app_n/features/courses/data/lesson.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson_resume.dart';
 import 'package:rawasi_app_n/features/contact/data/contact_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/question.dart';
+import 'package:rawasi_app_n/features/courses/data/replay_progress.dart';
 import 'package:rawasi_app_n/features/library/data/library_repo.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 enum _Phase { loading, failed, question, reviewIntro, review, finishing, done }
+
+/// What `_restoreReplaySitting` hands back to `_load()` — the same fields
+/// `_load()` would otherwise compute from [resumeLesson] itself, so applying
+/// a restored replay is a single assignment rather than a second code path.
+class _RestoredSitting {
+  final LessonResume resume;
+  final List<Question> pass;
+  final int index;
+  final List<Question> reviewQueue;
+  final int easyCount;
+  final _Phase phase;
+  final bool answerShown;
+
+  const _RestoredSitting({
+    required this.resume,
+    required this.pass,
+    required this.index,
+    required this.reviewQueue,
+    required this.easyCount,
+    required this.phase,
+    required this.answerShown,
+  });
+}
 
 class LessonFlowView extends StatefulWidget {
   final int lessonId;
@@ -82,6 +109,21 @@ class _LessonFlowViewState extends State<LessonFlowView>
 
   final List<Question> _reviewQueue = [];
   int _easyCount = 0;
+
+  /// True once this sitting is a REPLAY — every question was already done
+  /// before `_load()` ran. Gates every bit of replay-progress persistence
+  /// below: the first attempt keeps relying on the server alone, exactly as
+  /// before.
+  bool _isReplaySitting = false;
+
+  /// This student's token, read once and kept — it is the scoping key for
+  /// [ReplayProgressStore], not sent anywhere.
+  String? _token;
+
+  /// Ids judged ("سهل" or "جيد") in THIS replay's first pass so far, in
+  /// order — persisted after every one so the sitting survives the student
+  /// leaving mid-lesson. See replay_progress.dart.
+  final List<int> _firstPassJudgedIds = [];
 
   /// What this sitting is working through, and what was already behind the
   /// student when it began. Held whole rather than as loose counters so the
@@ -227,15 +269,42 @@ class _LessonFlowViewState extends State<LessonFlowView>
       // one. The rule, and why a fully-completed lesson still replays from the
       // start, is in lesson_resume.dart.
       final resume = resumeLesson(questions);
+      _isReplaySitting = isFullReplay(questions);
+      _firstPassJudgedIds.clear();
+
+      // Overridden below only for a replay with a saved sitting; otherwise
+      // these are exactly what resumeLesson() already produced.
+      var effectiveResume = resume;
+      var pass = resume.questions;
+      var index = 0;
+      var reviewQueue = <Question>[];
+      var easyCount = 0;
+      var phase = _Phase.question;
+      var answerShown = false;
+
+      if (_isReplaySitting) {
+        final restored = await _restoreReplaySitting(questions);
+        if (restored != null) {
+          effectiveResume = restored.resume;
+          pass = restored.pass;
+          index = restored.index;
+          reviewQueue = restored.reviewQueue;
+          easyCount = restored.easyCount;
+          phase = restored.phase;
+          answerShown = restored.answerShown;
+        }
+      }
+      if (!mounted) return;
 
       setState(() {
-        _resume = resume;
-        _pass = resume.questions;
-        _index = 0;
-        _easyCount = 0;
+        _resume = effectiveResume;
+        _pass = pass;
+        _index = index;
+        _easyCount = easyCount;
         _reviewQueue.clear();
-        _answerShown = false;
-        _phase = _Phase.question;
+        _reviewQueue.addAll(reviewQueue);
+        _answerShown = answerShown;
+        _phase = phase;
       });
       _startTimingQuestion();
     } catch (e) {
@@ -247,6 +316,97 @@ class _LessonFlowViewState extends State<LessonFlowView>
     }
   }
 
+  /// A saved replay sitting, reconstructed into the same shape `_load()`
+  /// already builds from [resumeLesson] for the first attempt — so the rest
+  /// of the screen (the resume notice, the counters, the progress bar) needs
+  /// no special case for a replay; it is handed data in the familiar shape.
+  Future<_RestoredSitting?> _restoreReplaySitting(
+    List<Question> questions,
+  ) async {
+    _token ??= await PrefHelper.getToken();
+    final token = _token;
+    if (token == null) return null;
+
+    final saved = await ReplayProgressStore.load(token, widget.lessonId);
+    // Every actual decision (is this still valid? first pass or review
+    // tail? what is left?) lives in resolveReplayOutcome, which has no I/O
+    // and nothing from this widget — see replay_progress_test.dart.
+    final outcome = resolveReplayOutcome(questions, saved);
+
+    if (outcome == null) {
+      // Either nothing was saved, or what was saved no longer matches this
+      // lesson's current content (reordered, edited) — either way there is
+      // nothing safe to resume, so the slot is freed for a clean sitting.
+      if (saved.isInProgress) {
+        await ReplayProgressStore.clear(token, widget.lessonId);
+      }
+      return null;
+    }
+
+    _firstPassJudgedIds.addAll(saved.firstPassJudgedIds);
+    final byId = {for (final q in questions) q.questionId: q};
+    final nextQuestions = outcome.nextIds.map((id) => byId[id]!).toList();
+    final reviewQuestions = outcome.reviewQueueIds
+        .map((id) => byId[id]!)
+        .toList();
+
+    return switch (outcome.kind) {
+      // The first pass still has work left: resume it, trimmed to what
+      // remains — exactly resumeLesson()'s own shape for a partial first
+      // attempt, just computed locally instead of from student_progress.
+      ReplayOutcomeKind.firstPass => _RestoredSitting(
+        resume: LessonResume(
+          questions: nextQuestions,
+          alreadyDone: outcome.alreadyDone,
+          total: questions.length,
+        ),
+        pass: nextQuestions,
+        index: 0,
+        reviewQueue: reviewQuestions,
+        easyCount: outcome.easyCount,
+        phase: _Phase.question,
+        answerShown: false,
+      ),
+      // The first pass was finished before the student left. Nothing to
+      // resume IN review (see replay_progress.dart for why) — start its
+      // review tail fresh, with every deferred question restored.
+      ReplayOutcomeKind.reviewTail => _RestoredSitting(
+        resume: LessonResume(
+          questions: questions,
+          alreadyDone: 0,
+          total: questions.length,
+        ),
+        pass: nextQuestions,
+        index: 0,
+        reviewQueue: const [],
+        easyCount: outcome.easyCount,
+        phase: _Phase.review,
+        answerShown: true,
+      ),
+    };
+  }
+
+  /// Persists [_firstPassJudgedIds] and the current review queue. Called
+  /// after every first-pass verdict so an exit mid-replay is never more than
+  /// one answer stale. Fire-and-forget: the student must never wait on a disk
+  /// write to move to the next question.
+  void _persistReplayProgress() {
+    if (!_isReplaySitting) return;
+    final token = _token;
+    if (token == null) return;
+
+    unawaited(
+      ReplayProgressStore.save(
+        token,
+        widget.lessonId,
+        ReplayProgress(
+          firstPassJudgedIds: List.of(_firstPassJudgedIds),
+          reviewQueueIds: _reviewQueue.map((q) => q.questionId).toList(),
+        ),
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Actions
   // ---------------------------------------------------------------------------
@@ -254,6 +414,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
   Future<void> _markEasy() async {
     if (_busy) return;
     final question = _current;
+    // Captured now, before _advance() can move the phase on: a review-pass
+    // conversion must not be recorded as a fresh first-pass verdict.
+    final wasFirstPass = _phase == _Phase.question;
     // Stop the clock before the request: network time is not study time.
     _bankTime(question.questionId);
 
@@ -271,6 +434,12 @@ class _LessonFlowViewState extends State<LessonFlowView>
       );
       if (!mounted) return;
       setState(() => _easyCount++);
+      // Only a first-pass verdict is remembered for a replay — see
+      // replay_progress.dart for why review itself is not resumed mid-way.
+      if (wasFirstPass) {
+        _firstPassJudgedIds.add(question.questionId);
+        _persistReplayProgress();
+      }
       await _advance();
     } catch (e) {
       if (!mounted) return;
@@ -289,6 +458,10 @@ class _LessonFlowViewState extends State<LessonFlowView>
     // when the review pass turns this question into "سهل" both sittings count.
     _bankTime(_current.questionId);
     _reviewQueue.add(_current);
+    // "جيد" only ever happens on the first pass (review offers no "جيد"
+    // button), so this is always a first-pass verdict — judged, just deferred.
+    _firstPassJudgedIds.add(_current.questionId);
+    _persistReplayProgress();
     await _advance();
   }
 
@@ -326,6 +499,11 @@ class _LessonFlowViewState extends State<LessonFlowView>
 
   Future<void> _finish() async {
     _watch.stop();
+    // The sitting this was tracking is over — nothing left to resume into.
+    final token = _token;
+    if (_isReplaySitting && token != null) {
+      unawaited(ReplayProgressStore.clear(token, widget.lessonId));
+    }
     setState(() => _phase = _Phase.finishing);
     try {
       final lessons = await _repo.fetchLessons(widget.courseId);

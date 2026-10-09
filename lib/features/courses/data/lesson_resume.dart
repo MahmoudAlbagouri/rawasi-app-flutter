@@ -13,6 +13,18 @@
 
 import 'package:rawasi_app_n/features/courses/data/question.dart';
 
+/// Whether this fetch is a REPLAY: every question already completed in an
+/// earlier sitting.
+///
+/// [resumeLesson] cannot tell a caller this on its own — its return shape is
+/// identical for "nothing done yet" and "a replay is starting" (both are
+/// `alreadyDone: 0, questions: questions`), which is correct for what IT
+/// renders but leaves `lesson_flow_view.dart`'s replay-progress feature with
+/// no way to know when to even look for a saved sitting. See
+/// replay_progress.dart for why a replay needs that at all.
+bool isFullReplay(List<Question> questions) =>
+    questions.isNotEmpty && questions.every((q) => q.isCompleted);
+
 /// What to ask in this sitting, and what was already done before it.
 class LessonResume {
   /// The questions to work through now.
