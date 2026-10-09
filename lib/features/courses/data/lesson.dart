@@ -69,10 +69,9 @@ class Lesson {
     );
   }
 
-  /// When the next lesson auto-unlocks if this one is not completed in time.
-  DateTime? get autoUnlockDeadline {
-    if (unlockedAt == null) return null;
-    final parsed = DateTime.tryParse(unlockedAt!);
-    return parsed?.add(const Duration(days: 3));
-  }
+  // There is no autoUnlockDeadline any more. Lessons used to open on their own
+  // 3 days after the one before them, which is what made finishing a lesson
+  // appear to open two; the backend dropped that rule on 2026-10-09, so there
+  // is no deadline to show. `unlockedAt` is still sent and still means "when
+  // this lesson became available".
 }

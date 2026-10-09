@@ -497,25 +497,31 @@ class _LessonFlowViewState extends State<LessonFlowView>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.primary100),
-                      ),
-                      child: CustomText(
-                        text: q.typeLabel,
-                        color: AppColors.brandPrimary,
-                        size: 13,
-                        weight: FontWeight.w600,
+                    // Flexible: a free-text type ("اكتب الآيات التي تلي…") can
+                    // be long, and must not push the counter off the row.
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.primary100),
+                        ),
+                        child: CustomText(
+                          text: q.typeLabel,
+                          color: AppColors.brandPrimary,
+                          size: 13,
+                          weight: FontWeight.w600,
+                          maxLines: 2,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const Gap(12),
                     CustomText(
                       // Numbered against the whole lesson, not against what is
                       // left of it, so this line and the resume notice above

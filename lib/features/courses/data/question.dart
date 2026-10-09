@@ -1,5 +1,6 @@
 /// Arabic labels for the backend's QuestionType enum (App\Enums\QuestionType).
-/// Keep in sync with it — an unknown key falls back to a neutral label.
+/// Keep in sync with it. `type` is also free text — admins can name types the
+/// enum does not have ("أكمل الآية") — and those are shown as written.
 const Map<String, String> _questionTypeLabels = {
   'multiple_choice': 'اختر',
   'fill_in_the_blank': 'أكمل',
@@ -18,11 +19,18 @@ const Map<String, String> _questionTypeLabels = {
   'memorization': 'استظهار',
 };
 
-/// Arabic label for a backend question type.
+/// Arabic label for a backend question type: the enum's short label, else the
+/// free-text type itself, else a neutral 'سؤال'.
 ///
 /// Public so the library flow can label a saved question without keeping a
 /// second copy of the map - the two must not drift.
-String questionTypeLabel(String? type) => _questionTypeLabels[type] ?? 'سؤال';
+String questionTypeLabel(String? type) {
+  final known = _questionTypeLabels[type];
+  if (known != null) return known;
+  final custom = type?.trim() ?? '';
+  // 'text' is fromJson's own placeholder for a missing type, not a real one.
+  return custom.isEmpty || custom == 'text' ? 'سؤال' : custom;
+}
 
 class Question {
   final int questionId;

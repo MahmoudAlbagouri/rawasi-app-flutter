@@ -316,24 +316,28 @@ class _QuestionsViewState extends State<QuestionsView> {
         Expanded(
           child: ListView(
             children: [
-              // Type badge — the Arabic label, never the raw enum value.
+              // Type badge — the Arabic label (or the free-text type), never the raw enum value.
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.primary100),
-                    ),
-                    child: CustomText(
-                      text: item.libraryable.typeLabel,
-                      color: AppColors.brandPrimary,
-                      size: 12,
-                      weight: FontWeight.w600,
+                  // Flexible: free-text types can be long.
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary100),
+                      ),
+                      child: CustomText(
+                        text: item.libraryable.typeLabel,
+                        color: AppColors.brandPrimary,
+                        size: 12,
+                        weight: FontWeight.w600,
+                        maxLines: 2,
+                      ),
                     ),
                   ),
                 ],

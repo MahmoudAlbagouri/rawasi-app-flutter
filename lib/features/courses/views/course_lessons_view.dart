@@ -363,11 +363,16 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                         weight: FontWeight.w600,
                       ),
                     )
-                  else if (lesson.autoUnlockDeadline != null)
+                  else
+                    // The only other reason a lesson is shut: the one before it
+                    // is unfinished. It used to say the lesson "may open
+                    // automatically later", which was true while a 3-day timer
+                    // could open it; nothing does that any more, so saying so
+                    // would be a promise the backend will not keep.
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: CustomText(
-                        text: 'مغلق — قد يُفتح تلقائيًا لاحقًا',
+                        text: 'أكمل الدرس السابق لفتح هذا الدرس',
                         color: AppColors.gray500,
                         size: 12,
                       ),

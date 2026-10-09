@@ -90,8 +90,14 @@ void main() {
       );
     });
 
-    test('an unknown or missing type falls back to a neutral label', () {
-      expect(_item(type: 'something_new').libraryable.typeLabel, 'سؤال');
+    test('a free-text type is shown as written', () {
+      // Admins can type their own types ("أكمل الآية") in the dashboard.
+      expect(_item(type: 'أكمل الآية').libraryable.typeLabel, 'أكمل الآية');
+      expect(_item(type: '  أكمل الآية ').libraryable.typeLabel, 'أكمل الآية');
+    });
+
+    test('a missing or blank type falls back to a neutral label', () {
+      expect(_item(type: '').libraryable.typeLabel, 'سؤال');
       expect(
         ContentItem.fromJson({
           'id': 1,
