@@ -29,6 +29,7 @@ import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/home/data/home_data.dart';
 import 'package:rawasi_app_n/features/home/widgets/animated_item.dart';
 import 'package:rawasi_app_n/features/home/widgets/inspiration_card.dart';
+import 'package:rawasi_app_n/features/home/widgets/guest_trial_banner.dart';
 import 'package:rawasi_app_n/features/home/widgets/intro_video_card.dart';
 import 'package:rawasi_app_n/features/home/widgets/pending_step_banner.dart';
 import 'package:rawasi_app_n/features/home/widgets/library_preview.dart';
@@ -42,7 +43,6 @@ import 'package:rawasi_app_n/features/library/subjects_view.dart';
 import 'package:rawasi_app_n/features/stats/views/statistics_view.dart';
 import 'package:rawasi_app_n/root.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
-import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/custom-snack.dart';
@@ -252,9 +252,21 @@ class _HomeViewState extends State<HomeView> {
               ? 'ضيف'
               : ((name == null || name.isEmpty) ? null : name));
 
+    // Signed out: the free-trial promo comes FIRST - home is the landing
+    // screen, and this is the one thing a new student has to be told before
+    // anything else. `isLoading` keeps it off screen while the token is being
+    // read: offering "سجّل الآن" to a student who just logged in was the most
+    // visible half of the guest flash.
+    final showGuestPromo = !data.isSignedIn && !data.isLoading;
+
     return [
       _Greeting(name: greetingName),
       const Gap(18),
+
+      if (showGuestPromo) ...[
+        _animated(60, const GuestTrialBanner()),
+        const Gap(22),
+      ],
 
       // 1. Momentum first.
       _animated(100, _statsSection(data, loading)),
@@ -263,38 +275,6 @@ class _HomeViewState extends State<HomeView> {
       // 2. The one quiet moment on the screen — unchanged, just moved.
       _animated(180, const InspirationCard(quote: _inspirationalQuote)),
       const Gap(22),
-
-      // Signed out: both ways in, same pair as every other pre-auth surface.
-      // `isLoading` is what keeps this off screen while the token is being
-      // read — offering "ابدأ رحلتك" to a student who just logged in was the
-      // most visible half of the guest flash.
-      if (!data.isSignedIn && !data.isLoading) ...[
-        _animated(
-          240,
-          HomeCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: const [
-                CustomText(
-                  text: 'ابدأ رحلتك مع رواسي',
-                  color: AppColors.gray900,
-                  size: 16,
-                  weight: FontWeight.bold,
-                ),
-                Gap(4),
-                CustomText(
-                  text: 'أول 15 يومًا مجانًا، بدون أي رسوم.',
-                  color: AppColors.gray600,
-                  size: 13,
-                ),
-                Gap(14),
-                AuthActions(primary: AuthAction.register),
-              ],
-            ),
-          ),
-        ),
-        const Gap(22),
-      ],
 
       if (profile != null && gateFor(profile) != null) ...[
         _animated(
