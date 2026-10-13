@@ -34,7 +34,9 @@ class LessonVideoView extends StatefulWidget {
   };
 
   /// https, and a host on the list. Anything else is not loaded at all.
-  @visibleForTesting
+  ///
+  /// The app's one definition of "a video host we trust" - YouTubeEmbed uses
+  /// it too, so the list above is the only list.
   static bool isAllowed(String url) {
     final uri = Uri.tryParse(url.trim());
 

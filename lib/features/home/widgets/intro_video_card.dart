@@ -8,7 +8,7 @@ import 'package:rawasi_app_n/shared/custom_text.dart';
 
 /// Dismissible pointer to the intro video and support.
 ///
-/// Renders whether or not AppConstants.introVideoUrl is set — the destination
+/// Renders whether or not the video has been published — the destination
 /// screen handles the empty case — so the card never links to a dead player.
 class IntroVideoCard extends StatelessWidget {
   final VoidCallback onDismiss;
