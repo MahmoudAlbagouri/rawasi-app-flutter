@@ -15,7 +15,7 @@ import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/core/utils/auth_helper.dart';
 import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
 import 'package:rawasi_app_n/features/stats/widgets/mastery_card.dart';
-import 'package:rawasi_app_n/features/stats/widgets/my_rank_card.dart';
+import 'package:rawasi_app_n/features/stats/widgets/my_points_card.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
@@ -185,7 +185,7 @@ class _StatisticsViewState extends State<StatisticsView> {
                       ),
                     ),
                     const Gap(12),
-                    MyRankCard(board: stats.leaderboard),
+                    MyPointsCard(board: stats.leaderboard),
                     const Gap(12),
                     _leaderboardCard(
                       stats.leaderboard,
@@ -582,10 +582,8 @@ class _StatisticsViewState extends State<StatisticsView> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       child: Column(
         children: [
-          // The student's own standing now has a dedicated card ABOVE this
-          // list (_myRankCard), shown always — including when they are inside
-          // the top ten, which is the motivating case the old conditional
-          // append suppressed. The in-list highlight stays.
+          // The student's own points have a dedicated card ABOVE this list
+          // (MyPointsCard), shown always. The in-list highlight stays.
           ...board.top.map(_leaderboardRow),
         ],
       ),

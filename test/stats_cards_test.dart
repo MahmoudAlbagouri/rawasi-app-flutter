@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
-import 'package:rawasi_app_n/features/stats/widgets/my_rank_card.dart';
+import 'package:rawasi_app_n/features/stats/widgets/my_points_card.dart';
+import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/shared/study_reminder_card.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -208,47 +209,74 @@ void main() {
     });
   });
 
-  group('rank card', () {
-    testWidgets('shows for a student inside the top ten', (tester) async {
-      // The motivating case the old conditional append suppressed.
+  group('points card (the rank card was removed 2026-10-13)', () {
+    testWidgets('shows the points as the headline, with no rank anywhere',
+        (tester) async {
+      // Inside the top ten: the case that used to show «ترتيبك #3» and a trophy.
       await tester.pumpWidget(_wrap(
-        MyRankCard(board: _board(myRank: 3, myPoints: 21, meInTop: true)),
+        MyPointsCard(board: _board(myRank: 3, myPoints: 21, meInTop: true)),
       ));
       await tester.pumpAndSettle();
 
-      // Reference layout: "ترتيبك" label, the rank as the headline figure,
-      // points alongside it.
-      expect(find.text('ترتيبك'), findsOneWidget);
-      expect(find.text('#3'), findsOneWidget);
+      expect(find.text('نقاطك'), findsOneWidget);
       expect(find.text('21 نقطة'), findsOneWidget);
-      expect(find.textContaining('ضمن أول عشرة'), findsOneWidget);
-      // Trophy for a student inside the top ten.
-      expect(find.byIcon(Icons.emoji_events), findsOneWidget);
-    });
 
-    testWidgets('shows for a student outside the top ten', (tester) async {
-      await tester.pumpWidget(_wrap(
-        MyRankCard(board: _board(myRank: 42, myPoints: 5)),
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.text('ترتيبك'), findsOneWidget);
-      expect(find.text('#42'), findsOneWidget);
-      expect(find.text('5 نقاط'), findsOneWidget);
-      // No trophy outside the top ten.
+      // Nothing about rank is left on the card.
+      expect(find.text('ترتيبك'), findsNothing);
+      expect(find.textContaining('#'), findsNothing);
+      expect(find.textContaining('ضمن أول عشرة'), findsNothing);
+      expect(find.textContaining('مركز'), findsNothing);
       expect(find.byIcon(Icons.emoji_events), findsNothing);
     });
 
-    testWidgets('a zero-progress student gets an invitation, not a zero',
-        (tester) async {
+    testWidgets('looks the same outside the top ten', (tester) async {
       await tester.pumpWidget(_wrap(
-        MyRankCard(board: _board(myRank: null, myPoints: 0)),
+        MyPointsCard(board: _board(myRank: 42, myPoints: 5)),
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('ابدأ بحل الأسئلة لدخول الترتيب'), findsOneWidget);
+      expect(find.text('نقاطك'), findsOneWidget);
+      expect(find.text('5 نقاط'), findsOneWidget);
+      expect(find.text('ترتيبك'), findsNothing);
       expect(find.textContaining('#'), findsNothing);
+    });
+
+    testWidgets('keeps the new / re-solved breakdown', (tester) async {
+      final board = Leaderboard.fromJson({
+        'scope': {'academic_year': '1', 'term': null},
+        'top': [],
+        'me': {
+          'rank': 7,
+          'points': 520,
+          'new_questions': 420,
+          'resolved_questions': 100,
+          'rank_change_week': 72,
+        },
+      });
+
+      await tester.pumpWidget(_wrap(MyPointsCard(board: board)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('520 نقطة'), findsOneWidget);
+      expect(find.text('أسئلة جديدة'), findsOneWidget);
+      expect(find.text('حللت ${arabicQuestions(420)}'), findsOneWidget);
+      expect(find.text('أسئلة مكررة'), findsOneWidget);
+      expect(find.text('حللت ${arabicQuestions(100)}'), findsOneWidget);
+      // The server still sends the weekly rank movement; the card no longer
+      // shows it, because it is a statement about rank.
+      expect(find.textContaining('هذا الأسبوع'), findsNothing);
+    });
+
+    testWidgets('a zero-point student gets an invitation, not a zero',
+        (tester) async {
+      await tester.pumpWidget(_wrap(
+        MyPointsCard(board: _board(myRank: null, myPoints: 0)),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ابدأ بحل الأسئلة لتجمع نقاطك'), findsOneWidget);
       expect(find.text('0 نقاط'), findsNothing);
+      expect(find.text('ترتيبك'), findsNothing);
     });
   });
 }

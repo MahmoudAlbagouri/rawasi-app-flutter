@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
 import 'package:rawasi_app_n/features/stats/widgets/mastery_card.dart';
-import 'package:rawasi_app_n/features/stats/widgets/my_rank_card.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
 
 /// Points = new + re-solved questions; the mastery rate; weekly rank movement;
@@ -39,15 +38,6 @@ void main() {
       expect(arabicQuestions(5), '5 أسئلة');
       expect(arabicPlaces(72), '72 مركزًا');
       expect(arabicPlaces(2), 'مركزين');
-    });
-  });
-
-  group('weekly rank movement', () {
-    test('up, down, unchanged, and nothing to compare', () {
-      expect(MyRankCard.weeklyLabel(72), 'تقدمت 72 مركزًا هذا الأسبوع');
-      expect(MyRankCard.weeklyLabel(-3), 'تراجعت 3 مراكز هذا الأسبوع');
-      expect(MyRankCard.weeklyLabel(0), 'حافظت على مركزك هذا الأسبوع');
-      expect(MyRankCard.weeklyLabel(null), isNull);
     });
   });
 
