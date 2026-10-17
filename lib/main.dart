@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 import 'package:rawasi_app_n/features/notifications/push_service.dart';
+import 'package:rawasi_app_n/shared/app_sounds.dart';
 import 'package:rawasi_app_n/shared/network_status_banner.dart';
 import 'package:rawasi_app_n/splash.dart';
 
@@ -20,6 +21,10 @@ void main() async {
   // Push notifications. init() never throws, so a Firebase problem can never
   // stop the app from starting.
   await PushService.instance.init();
+
+  // Interaction sounds: reads the on/off switch and warms the clips up in the
+  // background. Never throws.
+  await AppSounds.init();
 
   runApp(const MyApp());
 

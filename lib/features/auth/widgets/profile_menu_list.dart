@@ -9,6 +9,8 @@ import 'package:rawasi_app_n/features/auth/widgets/profile_menu_item.dart';
 import 'package:rawasi_app_n/features/contact/views/contact_view.dart';
 import 'package:rawasi_app_n/features/contact/views/intro_video_view.dart';
 import 'package:rawasi_app_n/features/contact/views/faq_view.dart';
+import 'package:rawasi_app_n/shared/animated_item.dart';
+import 'package:rawasi_app_n/shared/app_sounds.dart';
 
 class ProfileMenuList extends StatelessWidget {
   final VoidCallback onLogout;
@@ -117,8 +119,7 @@ class ProfileMenuList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
+    final items = <Widget>[
         ProfileMenuItem(
           title1: "بياناتي",
           icon: Icons.badge_outlined,
@@ -187,6 +188,7 @@ class ProfileMenuList extends StatelessWidget {
             );
           },
         ),
+        const _SoundsSwitchItem(),
         ProfileMenuItem(
           showArrow: false,
           title1: "تسجيل الخروج",
@@ -196,7 +198,47 @@ class ProfileMenuList extends StatelessWidget {
             _showLogoutConfirmationDialog(context);
           },
         ),
+    ];
+
+    // The rows arrive with the app's entrance animation, one after another.
+    return ListView(
+      children: [
+        for (var i = 0; i < items.length; i++)
+          AnimatedItem(
+            delay: Duration(milliseconds: 40 + i * 45),
+            child: items[i],
+          ),
       ],
     );
+  }
+}
+
+/// «أصوات التفاعل»: the one switch for the study sounds and the light
+/// vibrations that go with them (see AppSounds). Remembered on the device.
+class _SoundsSwitchItem extends StatelessWidget {
+  const _SoundsSwitchItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppSounds.enabled,
+      builder: (context, on, _) => ProfileMenuItem(
+        title1: "أصوات التفاعل",
+        icon: on ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+        iconColor: AppColors.brandSecondary,
+        onTap: () => _set(!on),
+        trailing: Switch.adaptive(
+          value: on,
+          onChanged: _set,
+          activeColor: AppColors.brandPrimary,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _set(bool on) async {
+    await AppSounds.setEnabled(on);
+    // Turning it on plays one so the student hears what they chose.
+    if (on) AppSounds.play(AppSound.easy);
   }
 }

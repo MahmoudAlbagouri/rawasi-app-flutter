@@ -3,8 +3,9 @@
 // Home: composition and data loading only. Every section lives in its own
 // widget under features/home/widgets/.
 //
-// Order — momentum first, then a study action within one scroll:
-//   stats summary → لمسة إلهام → subjects grid → library
+// Order — the app walkthrough first (2026-10-17), then momentum, then a study
+// action within one scroll:
+//   كيف يعمل التطبيق؟ → stats summary → لمسة إلهام → subjects grid → library
 //
 // The completion figure here is the curriculum-based one from /analytics,
 // rendered through Completion.percentLabel, which is the exact string
@@ -27,7 +28,7 @@ import 'package:rawasi_app_n/features/courses/data/subject_group.dart';
 import 'package:rawasi_app_n/features/courses/views/course_lessons_view.dart';
 import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/home/data/home_data.dart';
-import 'package:rawasi_app_n/features/home/widgets/animated_item.dart';
+import 'package:rawasi_app_n/shared/animated_item.dart';
 import 'package:rawasi_app_n/features/home/widgets/inspiration_card.dart';
 import 'package:rawasi_app_n/features/home/widgets/guest_trial_banner.dart';
 import 'package:rawasi_app_n/features/home/widgets/intro_video_card.dart';
@@ -252,16 +253,29 @@ class _HomeViewState extends State<HomeView> {
               ? 'ضيف'
               : ((name == null || name.isEmpty) ? null : name));
 
-    // Signed out: the free-trial promo comes FIRST - home is the landing
-    // screen, and this is the one thing a new student has to be told before
-    // anything else. `isLoading` keeps it off screen while the token is being
-    // read: offering "سجّل الآن" to a student who just logged in was the most
-    // visible half of the guest flash.
+    // Signed out: the free-trial promo comes right after the walkthrough card
+    // - home is the landing screen. `isLoading` keeps it off screen while the
+    // token is being read: offering "سجّل الآن" to a student who just logged
+    // in was the most visible half of the guest flash.
     final showGuestPromo = !data.isSignedIn && !data.isLoading;
 
     return [
       _Greeting(name: greetingName),
       const Gap(18),
+
+      // 0. «كيف يعمل التطبيق؟» — the FIRST card on home (2026-10-17), above
+      // «إنجازك حتى الآن» and above the guest promo: how to use the app comes
+      // before anything that assumes you already know. Still dismissible for
+      // the session, so it never becomes permanent furniture at the top.
+      if (!_introDismissed) ...[
+        _animated(
+          40,
+          IntroVideoCard(
+            onDismiss: () => setState(() => _introDismissed = true),
+          ),
+        ),
+        const Gap(22),
+      ],
 
       if (showGuestPromo) ...[
         _animated(60, const GuestTrialBanner()),
@@ -297,16 +311,6 @@ class _HomeViewState extends State<HomeView> {
 
       // 4. Library.
       ..._librarySection(data, loading),
-
-      if (!_introDismissed) ...[
-        _animated(
-          420,
-          IntroVideoCard(
-            onDismiss: () => setState(() => _introDismissed = true),
-          ),
-        ),
-        const Gap(8),
-      ],
     ];
   }
 

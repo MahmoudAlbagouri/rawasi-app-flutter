@@ -1,15 +1,23 @@
-// lib/features/home/widgets/animated_item.dart
+// lib/shared/animated_item.dart
+//
+// The app's one entrance animation: a short fade + slide as a card arrives.
+// Home started it; the courses, lessons, library, statistics and profile
+// screens use the same one, so every screen moves the same way.
 
 import 'package:flutter/material.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
 
-/// Entrance stagger. Extended rather than replaced — this is the screen's one
-/// animation system.
+/// Entrance stagger. Extended rather than replaced — this is the app's one
+/// entrance animation.
 class AnimatedItem extends StatefulWidget {
   final Widget child;
   final Duration delay;
 
-  const AnimatedItem({required this.child, required this.delay});
+  const AnimatedItem({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+  });
 
   @override
   State<AnimatedItem> createState() => AnimatedItemState();
@@ -66,6 +74,37 @@ class AnimatedItemState extends State<AnimatedItem>
     return FadeTransition(
       opacity: _opacityAnimation,
       child: SlideTransition(position: _slideAnimation, child: widget.child),
+    );
+  }
+}
+
+/// Staggers the FIRST SCREENFUL of a list in, once.
+///
+/// A ListView rebuilds rows as they scroll back into view, and animating every
+/// rebuild would make a list "re-arrive" each time the student scrolls up.
+/// So only rows built in the first moments after the list first appears, and
+/// only the first few of them, get the entrance; everything after is plain.
+///
+/// Keep one per screen State (`final _stagger = StaggerOnce();`).
+class StaggerOnce {
+  StaggerOnce({
+    this.maxItems = 8,
+    this.window = const Duration(milliseconds: 900),
+  });
+
+  final int maxItems;
+  final Duration window;
+
+  Stopwatch? _clock;
+
+  Widget wrap(int index, Widget child) {
+    final clock = _clock ??= (Stopwatch()..start());
+
+    if (index >= maxItems || clock.elapsed > window) return child;
+
+    return AnimatedItem(
+      delay: Duration(milliseconds: 40 + index * 55),
+      child: child,
     );
   }
 }

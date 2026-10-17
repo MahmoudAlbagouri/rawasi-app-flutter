@@ -10,6 +10,7 @@ import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
 import 'package:rawasi_app_n/features/courses/views/lesson_flow_view.dart';
+import 'package:rawasi_app_n/shared/animated_item.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class CourseLessonsView extends StatefulWidget {
@@ -52,6 +53,10 @@ class CourseLessonsView extends StatefulWidget {
 }
 
 class _CourseLessonsViewState extends State<CourseLessonsView> {
+  /// The first screenful of rows arrives with the app's entrance animation,
+  /// once - see StaggerOnce.
+  final _stagger = StaggerOnce();
+
   late Future<List<Lesson>> _lessonsFuture;
 
   bool _paymentStateLoaded = false;
@@ -201,13 +206,19 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
               separatorBuilder: (context, index) => const Gap(12),
               itemBuilder: (context, index) {
                 if (capped && index == 0) {
-                  return _freeAllowanceNotice(freeLimit, total, trialEnded);
+                  return _stagger.wrap(
+                    index,
+                    _freeAllowanceNotice(freeLimit, total, trialEnded),
+                  );
                 }
                 if (_showStreamNotice && index == (capped ? 1 : 0)) {
-                  return _streamNotice();
+                  return _stagger.wrap(index, _streamNotice());
                 }
 
-                return _lessonCard(lessons[index - leadingRows]);
+                return _stagger.wrap(
+                  index,
+                  _lessonCard(lessons[index - leadingRows]),
+                );
               },
             );
           },

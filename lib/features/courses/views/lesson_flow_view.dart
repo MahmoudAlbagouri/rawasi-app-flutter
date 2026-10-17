@@ -29,7 +29,11 @@ import 'package:rawasi_app_n/features/contact/data/contact_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/question.dart';
 import 'package:rawasi_app_n/features/courses/data/replay_progress.dart';
 import 'package:rawasi_app_n/features/library/data/library_repo.dart';
+import 'package:rawasi_app_n/shared/animated_item.dart';
+import 'package:rawasi_app_n/shared/app_sounds.dart';
+import 'package:rawasi_app_n/shared/celebration_burst.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/home_section.dart';
 
 enum _Phase { loading, failed, question, reviewIntro, review, finishing, done }
 
@@ -158,6 +162,11 @@ class _LessonFlowViewState extends State<LessonFlowView>
   List<Lesson> _courseLessons = [];
   Lesson? _nextLesson;
 
+  /// Whether the student finished the lesson in THIS sitting, which is what
+  /// earns the completion sound and burst. Opening a lesson with nothing left
+  /// to do lands on the same page, quietly.
+  bool _celebrate = false;
+
   /// True when the lesson that WOULD have come next is held by the free-plan
   /// allowance rather than by anything the student still has to do.
   ///
@@ -208,6 +217,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
       }
       _answerShown = true;
     });
+    AppSounds.play(AppSound.reveal);
   }
 
   /// Stop counting the moment the app leaves the foreground, and pick up again
@@ -261,7 +271,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
       if (!mounted) return;
 
       if (questions.isEmpty) {
-        await _finish();
+        // Nothing to answer: show the page, but there is nothing to celebrate.
+        await _finish(celebrate: false);
         return;
       }
 
@@ -417,6 +428,9 @@ class _LessonFlowViewState extends State<LessonFlowView>
     // Captured now, before _advance() can move the phase on: a review-pass
     // conversion must not be recorded as a fresh first-pass verdict.
     final wasFirstPass = _phase == _Phase.question;
+    // The question that completes the lesson gets the completion sound
+    // instead, a moment later — two rewards back to back would blur.
+    final completesLesson = _index + 1 >= _pass.length && _reviewQueue.isEmpty;
     // Stop the clock before the request: network time is not study time.
     _bankTime(question.questionId);
 
@@ -434,6 +448,8 @@ class _LessonFlowViewState extends State<LessonFlowView>
       );
       if (!mounted) return;
       setState(() => _easyCount++);
+      // After the server accepted it, never before: "سهل" means saved.
+      if (!completesLesson) AppSounds.play(AppSound.easy);
       // Only a first-pass verdict is remembered for a replay — see
       // replay_progress.dart for why review itself is not resumed mid-way.
       if (wasFirstPass) {
@@ -454,6 +470,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
 
   Future<void> _markGood() async {
     if (_busy) return;
+    AppSounds.play(AppSound.good);
     // Not sent yet - "جيد" never reaches the API. The time is banked so that
     // when the review pass turns this question into "سهل" both sittings count.
     _bankTime(_current.questionId);
@@ -497,7 +514,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
     _startTimingQuestion();
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish({bool celebrate = true}) async {
     _watch.stop();
     // The sitting this was tracking is over — nothing left to resume into.
     final token = _token;
@@ -524,7 +541,12 @@ class _LessonFlowViewState extends State<LessonFlowView>
     } catch (_) {
       // The lesson is already completed server-side; stats are a nice-to-have.
     }
-    if (mounted) setState(() => _phase = _Phase.done);
+    if (!mounted) return;
+    setState(() {
+      _celebrate = celebrate;
+      _phase = _Phase.done;
+    });
+    if (celebrate) AppSounds.play(AppSound.lessonComplete);
   }
 
   Future<void> _addToLibrary() async {
@@ -534,6 +556,7 @@ class _LessonFlowViewState extends State<LessonFlowView>
         questionId: _current.questionId,
       );
       if (!mounted) return;
+      AppSounds.play(AppSound.saved);
       _snack('تمت إضافة السؤال إلى المكتبة', success: true);
     } catch (e) {
       if (!mounted) return;
@@ -590,7 +613,28 @@ class _LessonFlowViewState extends State<LessonFlowView>
     _ => widget.lessonTitle,
   };
 
+  /// Phase changes (questions → review → done) cross-fade rather than cut.
   Widget _body() {
+    return AnimatedSwitcher(
+      duration: _motion(const Duration(milliseconds: 280)),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: _fill,
+      child: KeyedSubtree(key: ValueKey(_phase), child: _phaseBody()),
+    );
+  }
+
+  /// Instant when the device asks to reduce motion.
+  Duration _motion(Duration d) => motionReduced(context) ? Duration.zero : d;
+
+  /// AnimatedSwitcher's default layout centres a shorter child; these pages
+  /// must keep filling the screen while they swap.
+  static Widget _fill(Widget? current, List<Widget> previous) => Stack(
+    fit: StackFit.expand,
+    children: [...previous, if (current != null) current],
+  );
+
+  Widget _phaseBody() {
     switch (_phase) {
       case _Phase.loading:
       case _Phase.finishing:
@@ -669,92 +713,118 @@ class _LessonFlowViewState extends State<LessonFlowView>
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Flexible: a free-text type ("اكتب الآيات التي تلي…") can
-                    // be long, and must not push the counter off the row.
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.primary100),
-                        ),
-                        child: CustomText(
-                          text: q.typeLabel,
-                          color: AppColors.brandPrimary,
-                          size: 13,
-                          weight: FontWeight.w600,
-                          maxLines: 2,
+          // Each question arrives with a short fade-and-rise; revealing the
+          // answer does not count as a new question.
+          child: AnimatedSwitcher(
+            duration: _motion(const Duration(milliseconds: 260)),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: _fill,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.03),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: SingleChildScrollView(
+              key: ValueKey('${_phase.name}-$_index-${q.questionId}'),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Flexible: a free-text type ("اكتب الآيات التي تلي…") can
+                      // be long, and must not push the counter off the row.
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.primary100),
+                          ),
+                          child: CustomText(
+                            text: q.typeLabel,
+                            color: AppColors.brandPrimary,
+                            size: 13,
+                            weight: FontWeight.w600,
+                            maxLines: 2,
+                          ),
                         ),
                       ),
-                    ),
-                    const Gap(12),
+                      const Gap(12),
+                      CustomText(
+                        // Numbered against the whole lesson, not against what is
+                        // left of it, so this line and the resume notice above
+                        // tell the student the same story.
+                        text: _isReviewPass
+                            ? 'مراجعة ${_index + 1} من ${_pass.length}'
+                            : 'السؤال $_lessonPosition من ${_resume.total}',
+                        color: AppColors.gray600,
+                        size: 13,
+                        weight: FontWeight.w600,
+                      ),
+                    ],
+                  ),
+                  const Gap(16),
+                  CustomText(
+                    text: 'السؤال:',
+                    color: AppColors.gray900,
+                    size: 15,
+                    weight: FontWeight.bold,
+                  ),
+                  const Gap(8),
+                  _panel(q.question),
+                  // Page 1: an optional box for the student's own answer,
+                  // between the question and "إظهار الإجابة".
+                  if (!_answerShown) ...[const Gap(20), _myAnswerField()],
+                  // Page 2: what they wrote, between the question and the model
+                  // answer — only when they wrote something.
+                  if (_answerShown && _myAnswers[q.questionId] != null) ...[
+                    const Gap(20),
                     CustomText(
-                      // Numbered against the whole lesson, not against what is
-                      // left of it, so this line and the resume notice above
-                      // tell the student the same story.
-                      text: _isReviewPass
-                          ? 'مراجعة ${_index + 1} من ${_pass.length}'
-                          : 'السؤال $_lessonPosition من ${_resume.total}',
-                      color: AppColors.gray600,
-                      size: 13,
-                      weight: FontWeight.w600,
+                      text: 'إجابتك:',
+                      color: AppColors.gray900,
+                      size: 15,
+                      weight: FontWeight.bold,
+                    ),
+                    const Gap(8),
+                    _myAnswerPanel(_myAnswers[q.questionId]!),
+                  ],
+                  if (_answerShown) ...[
+                    const Gap(20),
+                    AnimatedItem(
+                      key: ValueKey('answer-label-${q.questionId}'),
+                      child: CustomText(
+                        text: 'الإجابة:',
+                        color: AppColors.gray900,
+                        size: 15,
+                        weight: FontWeight.bold,
+                      ),
+                    ),
+                    const Gap(8),
+                    AnimatedItem(
+                      key: ValueKey('answer-${q.questionId}'),
+                      delay: const Duration(milliseconds: 60),
+                      child: _panel(
+                        q.answer.isEmpty
+                            ? 'لا توجد إجابة مسجلة لهذا السؤال.'
+                            : q.answer,
+                        tinted: true,
+                      ),
                     ),
                   ],
-                ),
-                const Gap(16),
-                CustomText(
-                  text: 'السؤال:',
-                  color: AppColors.gray900,
-                  size: 15,
-                  weight: FontWeight.bold,
-                ),
-                const Gap(8),
-                _panel(q.question),
-                // Page 1: an optional box for the student's own answer,
-                // between the question and "إظهار الإجابة".
-                if (!_answerShown) ...[const Gap(20), _myAnswerField()],
-                // Page 2: what they wrote, between the question and the model
-                // answer — only when they wrote something.
-                if (_answerShown && _myAnswers[q.questionId] != null) ...[
-                  const Gap(20),
-                  CustomText(
-                    text: 'إجابتك:',
-                    color: AppColors.gray900,
-                    size: 15,
-                    weight: FontWeight.bold,
-                  ),
-                  const Gap(8),
-                  _myAnswerPanel(_myAnswers[q.questionId]!),
                 ],
-                if (_answerShown) ...[
-                  const Gap(20),
-                  CustomText(
-                    text: 'الإجابة:',
-                    color: AppColors.gray900,
-                    size: 15,
-                    weight: FontWeight.bold,
-                  ),
-                  const Gap(8),
-                  _panel(
-                    q.answer.isEmpty
-                        ? 'لا توجد إجابة مسجلة لهذا السؤال.'
-                        : q.answer,
-                    tinted: true,
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
         ),
@@ -850,132 +920,137 @@ class _LessonFlowViewState extends State<LessonFlowView>
           BoxShadow(color: AppColors.gray200.withOpacity(0.6), blurRadius: 12),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!_answerShown)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _revealAnswer,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+      child: AnimatedSize(
+        duration: _motion(const Duration(milliseconds: 220)),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.bottomCenter,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!_answerShown)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _revealAnswer,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-                child: const Text(
-                  'إظهار الإجابة',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            )
-          else if (_isReviewPass)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _busy ? null : _markEasy,
-                icon: const Icon(
-                  Icons.check_circle,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                label: const Text(
-                  'تحويل هذا السؤال إلى "سهل"',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandPrimary,
-                  disabledBackgroundColor: AppColors.gray300,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-              ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _busy ? null : _markEasy,
-                    icon: const Icon(
-                      Icons.check,
+                  child: const Text(
+                    'إظهار الإجابة',
+                    style: TextStyle(
                       color: Colors.white,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'سهل',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success600,
-                      disabledBackgroundColor: AppColors.gray300,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const Gap(12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _busy ? null : _markGood,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brandPrimary,
-                      disabledBackgroundColor: AppColors.gray300,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+              )
+            else if (_isReviewPass)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _busy ? null : _markEasy,
+                  icon: const Icon(
+                    Icons.check_circle,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'تحويل هذا السؤال إلى "سهل"',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
-                    child: const Text(
-                      'جيد',
-                      style: TextStyle(
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandPrimary,
+                    disabledBackgroundColor: AppColors.gray300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _busy ? null : _markEasy,
+                      icon: const Icon(
+                        Icons.check,
                         color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'سهل',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success600,
+                        disabledBackgroundColor: AppColors.gray300,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          if (_answerShown) ...[
-            const Gap(6),
+                  const Gap(12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _busy ? null : _markGood,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brandPrimary,
+                        disabledBackgroundColor: AppColors.gray300,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'جيد',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            if (_answerShown) ...[
+              const Gap(6),
+              TextButton.icon(
+                onPressed: _addToLibrary,
+                icon: const Icon(Icons.star_border, size: 20),
+                label: const Text('حفظ كسؤال مفضل في المكتبة'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.gray700),
+              ),
+            ],
+            // Available on every question, answer shown or not: a student who
+            // cannot make sense of the question itself is exactly who needs to
+            // ask about it, and making them reveal the answer first would be a
+            // strange toll to charge for asking.
             TextButton.icon(
-              onPressed: _addToLibrary,
-              icon: const Icon(Icons.star_border, size: 20),
-              label: const Text('حفظ كسؤال مفضل في المكتبة'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.gray700),
+              onPressed: _openFeedbackSheet,
+              icon: const Icon(Icons.flag_outlined, size: 20),
+              label: const Text('ملاحظة أو استفسار عن السؤال'),
+              style: TextButton.styleFrom(foregroundColor: AppColors.gray600),
             ),
           ],
-          // Available on every question, answer shown or not: a student who
-          // cannot make sense of the question itself is exactly who needs to
-          // ask about it, and making them reveal the answer first would be a
-          // strange toll to charge for asking.
-          TextButton.icon(
-            onPressed: _openFeedbackSheet,
-            icon: const Icon(Icons.flag_outlined, size: 20),
-            label: const Text('ملاحظة أو استفسار عن السؤال'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.gray600),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1412,9 +1487,18 @@ class _LessonFlowViewState extends State<LessonFlowView>
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          const Gap(16),
-          Icon(Icons.verified, size: 84, color: AppColors.success600),
-          const Gap(16),
+          const Gap(8),
+          if (_celebrate)
+            const CelebrationBurst(
+              child: Icon(
+                Icons.verified,
+                size: 84,
+                color: AppColors.success600,
+              ),
+            )
+          else
+            const Icon(Icons.verified, size: 84, color: AppColors.success600),
+          const Gap(8),
           CustomText(
             text: 'أحسنت! تم إنهاء الدرس بنجاح',
             color: AppColors.gray900,

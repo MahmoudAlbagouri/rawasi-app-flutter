@@ -25,6 +25,7 @@ import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/stats/data/stats_repo.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
 import 'package:rawasi_app_n/root.dart';
+import 'package:rawasi_app_n/shared/animated_item.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 class StatisticsView extends StatefulWidget {
@@ -45,6 +46,10 @@ class _StatsPage {
 
 class _StatisticsViewState extends State<StatisticsView> {
   late Future<_StatsPage> _future;
+
+  /// The first screenful of rows arrives with the app's entrance animation,
+  /// once - see StaggerOnce.
+  final _stagger = StaggerOnce();
 
   @override
   void initState() {
@@ -155,20 +160,26 @@ class _StatisticsViewState extends State<StatisticsView> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    _overallCard(stats.completion),
+                    _stagger.wrap(0, _overallCard(stats.completion)),
                     const Gap(16),
-                    _row(stats),
+                    _stagger.wrap(1, _row(stats)),
                     const Gap(16),
-                    _pacingCard(stats.pacing),
+                    _stagger.wrap(2, _pacingCard(stats.pacing)),
                     const Gap(16),
-                    MasteryCard(mastery: stats.mastery),
+                    _stagger.wrap(3, MasteryCard(mastery: stats.mastery)),
                     const Gap(16),
-                    TrialCard(
-                      trial: stats.trial,
-                      subscription: stats.subscription,
+                    _stagger.wrap(
+                      4,
+                      TrialCard(
+                        trial: stats.trial,
+                        subscription: stats.subscription,
+                      ),
                     ),
                     const Gap(16),
-                    StudyReminderCard(inactivity: stats.inactivity),
+                    _stagger.wrap(
+                      5,
+                      StudyReminderCard(inactivity: stats.inactivity),
+                    ),
                     // The per-subject "تقدم المواد" grid used to sit here. Removed
                     // to keep this screen to a reasonable scroll: the same
                     // per-subject figures are already on the home subjects grid
@@ -185,11 +196,14 @@ class _StatisticsViewState extends State<StatisticsView> {
                       ),
                     ),
                     const Gap(12),
-                    MyPointsCard(board: stats.leaderboard),
+                    _stagger.wrap(6, MyPointsCard(board: stats.leaderboard)),
                     const Gap(12),
-                    _leaderboardCard(
-                      stats.leaderboard,
-                      myCompletedLessons: stats.completion.completedLessons,
+                    _stagger.wrap(
+                      7,
+                      _leaderboardCard(
+                        stats.leaderboard,
+                        myCompletedLessons: stats.completion.completedLessons,
+                      ),
                     ),
                     const Gap(24),
                   ],

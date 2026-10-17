@@ -13,6 +13,9 @@ class ProfileMenuItem extends StatelessWidget {
   final Color? iconColor;
   final bool showArrow;
 
+  /// Replaces the arrow, e.g. with a switch for a setting row.
+  final Widget? trailing;
+
   const ProfileMenuItem({
     super.key,
     required this.title1,
@@ -21,6 +24,7 @@ class ProfileMenuItem extends StatelessWidget {
     this.onTap,
     this.iconColor,
     this.showArrow = true,
+    this.trailing,
   });
 
   @override
@@ -78,8 +82,10 @@ class ProfileMenuItem extends StatelessWidget {
               children: [
                 if (title2 != null)
                   CustomText(text: title2!, size: 14, color: AppColors.gray600),
-                if (title2 != null && showArrow) Gap(8),
-                if (showArrow)
+                if (title2 != null && (showArrow || trailing != null)) Gap(8),
+                if (trailing != null)
+                  trailing!
+                else if (showArrow)
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
