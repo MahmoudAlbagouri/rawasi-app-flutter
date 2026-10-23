@@ -13,10 +13,16 @@ class AnimatedItem extends StatefulWidget {
   final Widget child;
   final Duration delay;
 
+  /// False shows the child already settled. Used by [StaggerOnce] for rows
+  /// that should not animate, so the widget at that position keeps the same
+  /// type either way (switching it would remount the row and lose its state).
+  final bool animate;
+
   const AnimatedItem({
     super.key,
     required this.child,
     this.delay = Duration.zero,
+    this.animate = true,
   });
 
   @override
@@ -52,6 +58,10 @@ class AnimatedItemState extends State<AnimatedItem>
       ),
     );
 
+    if (!widget.animate) {
+      _controller.value = 1;
+      return;
+    }
     Future.delayed(widget.delay, () {
       if (mounted) _controller.forward();
     });
@@ -83,7 +93,9 @@ class AnimatedItemState extends State<AnimatedItem>
 /// A ListView rebuilds rows as they scroll back into view, and animating every
 /// rebuild would make a list "re-arrive" each time the student scrolls up.
 /// So only rows built in the first moments after the list first appears, and
-/// only the first few of them, get the entrance; everything after is plain.
+/// only the first few of them, get the entrance; everything after is shown
+/// settled. Every row is still wrapped, so a rebuild never changes the widget
+/// type at a position (which would remount the card and lose its state).
 ///
 /// Keep one per screen State (`final _stagger = StaggerOnce();`).
 class StaggerOnce {
@@ -100,9 +112,8 @@ class StaggerOnce {
   Widget wrap(int index, Widget child) {
     final clock = _clock ??= (Stopwatch()..start());
 
-    if (index >= maxItems || clock.elapsed > window) return child;
-
     return AnimatedItem(
+      animate: index < maxItems && clock.elapsed <= window,
       delay: Duration(milliseconds: 40 + index * 55),
       child: child,
     );

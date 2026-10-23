@@ -45,11 +45,11 @@ enum AppSound {
   /// Lesson finished — a warm arpeggio, the one longer sound.
   lessonComplete('lesson_complete.wav', 0.75, _Haptic.medium);
 
-  const AppSound(this.file, this.volume, this.haptic);
+  const AppSound(this.file, this.volume, this._haptic);
 
   final String file;
   final double volume;
-  final _Haptic haptic;
+  final _Haptic _haptic;
 
   String get assetPath => 'sounds/$file';
 }
@@ -106,7 +106,7 @@ class AppSounds {
     if (!enabled.value) return;
 
     debugOnPlay?.call(sound);
-    _vibrate(sound.haptic);
+    _vibrate(sound._haptic);
 
     if (_audioAvailable) unawaited(_play(sound));
   }

@@ -26,15 +26,23 @@ subprojects {
 // defaults — screen_protector compiles Kotlin at 21 while this app uses 17,
 // which broke the release build. Pinning both here keeps any plugin, present
 // or future, in step with the app.
+//
+// The Java side has to be set AFTER the plugin has configured itself: a plugin
+// that declares its own compileOptions (audioplayers_android says Java 1.8)
+// does so in its own build file, which runs after a hook registered on plugin
+// application and would override it.
 subprojects {
-    plugins.withId("com.android.library") {
-        extensions.configure<com.android.build.gradle.LibraryExtension> {
-            compileOptions {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
+    val pinJava17 = Action<Project> {
+        plugins.withId("com.android.library") {
+            extensions.configure<com.android.build.gradle.LibraryExtension> {
+                compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_17
+                    targetCompatibility = JavaVersion.VERSION_17
+                }
             }
         }
     }
+    if (state.executed) pinJava17.execute(this) else afterEvaluate(pinJava17)
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {

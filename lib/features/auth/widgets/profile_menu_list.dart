@@ -120,84 +120,82 @@ class ProfileMenuList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <Widget>[
-        ProfileMenuItem(
-          title1: "بياناتي",
-          icon: Icons.badge_outlined,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const StudentDetailsView(),
-              ),
-            );
-          },
-        ),
-        ProfileMenuItem(
-          title1: "الاعدادات و كلمة السر",
-          icon: Icons.lock_outline,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ChangePasswordView()),
-            );
-          },
-        ),
-        ProfileMenuItem(
-          title1: "الاشتراك",
-          icon: Icons.shield_outlined,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SubscriptionView()),
-            );
-          },
-        ),
-        ProfileMenuItem(
-          title1: "كيف يعمل التطبيق؟",
-          icon: Icons.ondemand_video_outlined,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const IntroVideoView()),
-            );
-          },
-        ),
-        ProfileMenuItem(
-          title1: "تواصل معنا",
-          icon: Icons.question_mark,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ContactView()),
-            );
-          },
-        ),
-        ProfileMenuItem(
-          title1: "الأسئلة الشائعة",
-          icon: Icons.help_outline,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const FaqView()),
-            );
-          },
-        ),
-        const _SoundsSwitchItem(),
-        ProfileMenuItem(
-          showArrow: false,
-          title1: "تسجيل الخروج",
-          icon: Icons.logout,
-          iconColor: AppColors.brandSecondary,
-          onTap: () {
-            _showLogoutConfirmationDialog(context);
-          },
-        ),
+      ProfileMenuItem(
+        title1: "بياناتي",
+        icon: Icons.badge_outlined,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const StudentDetailsView()),
+          );
+        },
+      ),
+      ProfileMenuItem(
+        title1: "الاعدادات و كلمة السر",
+        icon: Icons.lock_outline,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => ChangePasswordView()),
+          );
+        },
+      ),
+      ProfileMenuItem(
+        title1: "الاشتراك",
+        icon: Icons.shield_outlined,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => SubscriptionView()),
+          );
+        },
+      ),
+      ProfileMenuItem(
+        title1: "كيف يعمل التطبيق؟",
+        icon: Icons.ondemand_video_outlined,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const IntroVideoView()),
+          );
+        },
+      ),
+      ProfileMenuItem(
+        title1: "تواصل معنا",
+        icon: Icons.question_mark,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => ContactView()),
+          );
+        },
+      ),
+      ProfileMenuItem(
+        title1: "الأسئلة الشائعة",
+        icon: Icons.help_outline,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const FaqView()),
+          );
+        },
+      ),
+      const _SoundsSwitchItem(),
+      ProfileMenuItem(
+        showArrow: false,
+        title1: "تسجيل الخروج",
+        icon: Icons.logout,
+        iconColor: AppColors.brandSecondary,
+        onTap: () {
+          _showLogoutConfirmationDialog(context);
+        },
+      ),
     ];
 
     // The rows arrive with the app's entrance animation, one after another.
@@ -227,10 +225,10 @@ class _SoundsSwitchItem extends StatelessWidget {
         icon: on ? Icons.volume_up_outlined : Icons.volume_off_outlined,
         iconColor: AppColors.brandSecondary,
         onTap: () => _set(!on),
-        trailing: Switch.adaptive(
+        trailing: Switch(
           value: on,
           onChanged: _set,
-          activeColor: AppColors.brandPrimary,
+          activeThumbColor: AppColors.brandPrimary,
         ),
       ),
     );
