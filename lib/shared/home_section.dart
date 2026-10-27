@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
 /// True when the viewer has asked the platform to reduce motion.
@@ -50,15 +51,18 @@ class HomeCard extends StatelessWidget {
       return Container(padding: padding, decoration: decoration, child: child);
     }
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
+    // Settles in slightly under the finger (Pressable, app_motion.dart).
+    return Pressable(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          decoration: decoration,
-          child: Padding(padding: padding, child: child),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: decoration,
+            child: Padding(padding: padding, child: child),
+          ),
         ),
       ),
     );

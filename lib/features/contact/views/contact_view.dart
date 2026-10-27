@@ -236,6 +236,7 @@ import 'package:rawasi_app_n/features/contact/widgets/message_card.dart';
 import 'package:rawasi_app_n/features/contact/widgets/send_message_form.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 
 class ContactView extends StatefulWidget {
   const ContactView({super.key});
@@ -531,66 +532,68 @@ class _ContactViewState extends State<ContactView>
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FadeTransition(
-                opacity: _titleAnimation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, -0.2),
-                    end: Offset.zero,
-                  ).animate(_titleAnimation),
-                  child: CustomText(
-                    text: 'تواصل مع رواسي الآن',
-                    color: AppColors.brandPrimary,
-                    size: 24,
-                    weight: FontWeight.bold,
+      body: BrandBackdrop(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FadeTransition(
+                  opacity: _titleAnimation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, -0.2),
+                      end: Offset.zero,
+                    ).animate(_titleAnimation),
+                    child: CustomText(
+                      text: 'تواصل مع رواسي الآن',
+                      color: AppColors.brandPrimary,
+                      size: 24,
+                      weight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              const Gap(24),
-              SendMessageForm(controller: _controller, onSend: _sendMessage),
-              const Gap(24),
-              Align(
-                alignment: Alignment.centerRight,
-                child: CustomText(
-                  text: 'الأسئلة السابقة',
-                  color: AppColors.gray600,
-                  size: 14,
-                  weight: FontWeight.w600,
+                const Gap(24),
+                SendMessageForm(controller: _controller, onSend: _sendMessage),
+                const Gap(24),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: CustomText(
+                    text: 'الأسئلة السابقة',
+                    color: AppColors.gray600,
+                    size: 14,
+                    weight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const Gap(8),
-              Expanded(
-                child: FutureBuilder<List<ContactMessage>>(
-                  future: _messagesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return Center(
-                        child: CustomText(
-                          text: 'لا توجد رسائل سابقة',
-                          color: AppColors.gray500,
-                          size: 14,
-                        ),
+                const Gap(8),
+                Expanded(
+                  child: FutureBuilder<List<ContactMessage>>(
+                    future: _messagesFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Center(
+                          child: CustomText(
+                            text: 'لا توجد رسائل سابقة',
+                            color: AppColors.gray500,
+                            size: 14,
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return MessageCard(message: snapshot.data![index]);
+                        },
                       );
-                    }
-                    return ListView.builder(
-                      itemCount: snapshot.data!.length,
-                      itemBuilder: (context, index) {
-                        return MessageCard(message: snapshot.data![index]);
-                      },
-                    );
-                  },
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

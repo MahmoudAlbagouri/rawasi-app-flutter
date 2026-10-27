@@ -33,6 +33,7 @@ import 'package:rawasi_app_n/features/auth/widgets/card_subscription.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 
 class SubscriptionView extends StatefulWidget {
   const SubscriptionView({super.key});
@@ -247,30 +248,32 @@ class _SubscriptionViewState extends State<SubscriptionView> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: FutureBuilder<_Page>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      body: BrandBackdrop(
+        child: SafeArea(
+          child: FutureBuilder<_Page>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            final page = snapshot.data ?? const _Page();
-            final profile = page.profile;
-            if (profile == null) {
-              return const AccountGate(
-                reason: GateReason.signedOut,
-                action: AuthActions(),
-              );
-            }
+              final page = snapshot.data ?? const _Page();
+              final profile = page.profile;
+              if (profile == null) {
+                return const AccountGate(
+                  reason: GateReason.signedOut,
+                  action: AuthActions(),
+                );
+              }
 
-            final reason = gateFor(profile);
-            if (reason != null) return AccountGate(reason: reason);
+              final reason = gateFor(profile);
+              if (reason != null) return AccountGate(reason: reason);
 
-            if (profile.hasPaidSubscription) return _paid();
-            if (profile.paymentPending) return _pending();
-            return _plans(page, profile);
-          },
+              if (profile.hasPaidSubscription) return _paid();
+              if (profile.paymentPending) return _pending();
+              return _plans(page, profile);
+            },
+          ),
         ),
       ),
     );

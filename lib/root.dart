@@ -5,6 +5,8 @@ import 'package:rawasi_app_n/features/courses/views/courses_view.dart';
 import 'package:rawasi_app_n/features/home/views/home_view.dart';
 import 'package:rawasi_app_n/features/library/subjects_view.dart';
 import 'package:rawasi_app_n/features/stats/views/statistics_view.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
+import 'package:rawasi_app_n/shared/home_section.dart';
 
 /// The bottom navigation tabs, in display order.
 ///
@@ -62,7 +64,7 @@ class CustomBottomNavBar extends StatelessWidget {
         if (didPop) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => NavTab.home.screen),
+          TabSwitchRoute(builder: (_) => NavTab.home.screen),
         );
       },
       child: Container(
@@ -90,17 +92,57 @@ class CustomBottomNavBar extends StatelessWidget {
             final tab = NavTab.values[index];
             if (tab == current) return;
 
+            // A tab is a sibling, not a level deeper: it fades through
+            // rather than sliding in like a pushed screen.
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => tab.screen),
+              TabSwitchRoute(builder: (_) => tab.screen),
             );
           },
           items: [
             for (final tab in NavTab.values)
-              BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
+              BottomNavigationBarItem(
+                icon: Icon(tab.icon),
+                activeIcon: _ActiveTabIcon(icon: tab.icon),
+                label: tab.label,
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The selected tab's icon lifts into place as its screen opens, on a soft
+/// brand-tinted pill. It plays once: each tab is a fresh screen (the bar is
+/// rebuilt with it), so there is no state to carry between tabs.
+class _ActiveTabIcon extends StatelessWidget {
+  final IconData icon;
+
+  const _ActiveTabIcon({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final pill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Icon(icon),
+    );
+
+    if (motionReduced(context)) return pill;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack,
+      builder: (context, t, child) => Transform.translate(
+        offset: Offset(0, 4 * (1 - t)),
+        child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+      ),
+      child: pill,
     );
   }
 }

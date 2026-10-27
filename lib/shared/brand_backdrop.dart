@@ -7,18 +7,23 @@
 // geometry, so painting it costs nothing to download, scales to any density,
 // and takes its colour from AppColors instead of being baked into a raster.
 //
-// AMBIENT MOTION (2026-10-17). The lattice drifts very slowly — about one
-// pixel a second, one tile a minute, a seamless loop because the pattern
-// repeats every tile — and a soft brand-blue glow breathes in the top corner.
-// It is meant to be felt rather than watched, on the general screens (home,
-// subjects, library, statistics, profile); the question screen does not use
-// this backdrop, so nothing moves while a student is reading a question.
+// AMBIENT MOTION (2026-10-17, made visible 2026-10-24). The lattice drifts
+// one tile every 24 s (about 2.7 px a second — a seamless loop, because the
+// pattern repeats every tile), and three soft orbs of light in the brand's
+// own tints float slowly through the header area on unrelated paths, so the
+// movement never visibly repeats. The first version (one tile a minute, a
+// single faint glow) was too subtle to be noticed at all.
+//
+// It is still meant to sit behind the content, never compete with it: the
+// orbs live in the top of the page under the cards, the lattice stays at 6%
+// opacity, and the question screen does not use this backdrop at all, so
+// nothing moves while a student is reading a question.
 //
 // Kept cheap and polite:
-//   - the lattice is still painted ONCE; the motion only moves that painted
-//     layer, it never repaints the stars;
-//   - a timer advances it ~15 times a second, not the display's 60–120 —
-//     at a pixel a second, more frames would be invisible and cost battery;
+//   - the lattice and the orbs are painted ONCE; the motion only moves those
+//     painted layers, it never repaints them;
+//   - a timer advances it 20 times a second, not the display's 60–120 — at
+//     these speeds more frames would be invisible and cost battery;
 //   - it stops when the screen is covered by another, when the app is in the
 //     background, and entirely when the device asks to reduce motion.
 
@@ -59,10 +64,10 @@ class BrandBackdrop extends StatefulWidget {
       !kIsWeb && !Platform.environment.containsKey('FLUTTER_TEST');
 
   /// One tile of drift takes this long.
-  static const Duration driftPeriod = Duration(seconds: 60);
+  static const Duration driftPeriod = Duration(seconds: 24);
 
   /// How often the motion advances.
-  static const Duration frameInterval = Duration(milliseconds: 66);
+  static const Duration frameInterval = Duration(milliseconds: 50);
 
   @override
   State<BrandBackdrop> createState() => _BrandBackdropState();
@@ -150,9 +155,11 @@ class _BrandBackdropState extends State<BrandBackdrop>
             child: IgnorePointer(child: _DriftingLattice(seconds: _seconds)),
           ),
           Positioned(
-            top: -110,
-            right: -90,
-            child: IgnorePointer(child: _BreathingGlow(seconds: _seconds)),
+            top: 0,
+            left: 0,
+            right: 0,
+            height: widget.patternHeight + 120,
+            child: IgnorePointer(child: _Aurora(seconds: _seconds)),
           ),
           widget.child,
         ],
@@ -221,48 +228,141 @@ class _DriftingLattice extends StatelessWidget {
   }
 }
 
-/// A soft brand-blue light in the top corner, drifting and breathing slowly.
-class _BreathingGlow extends StatelessWidget {
+/// Three soft orbs of brand light drifting through the header area.
+///
+/// Each orb follows its own slow Lissajous path (periods chosen to share no
+/// common factor, so the combined movement never visibly repeats) and
+/// breathes a little in size. Colours are AppColors tints only.
+class _Aurora extends StatelessWidget {
   final ValueListenable<double> seconds;
 
-  const _BreathingGlow({required this.seconds});
+  const _Aurora({required this.seconds});
 
-  static const double size = 300;
+  static const List<_Orb> orbs = [
+    // brand blue, top right
+    _Orb(
+      color: AppColors.primary100,
+      size: 300,
+      ax: 0.88,
+      ay: -0.55,
+      dx: 46,
+      dy: 26,
+      px: 29,
+      py: 37,
+      breathe: 21,
+      opacity: 0.70,
+    ),
+    // secondary tint, left
+    _Orb(
+      color: AppColors.secondary100,
+      size: 240,
+      ax: -0.95,
+      ay: 0.05,
+      dx: 38,
+      dy: 32,
+      px: 41,
+      py: 23,
+      breathe: 27,
+      opacity: 0.55,
+    ),
+    // light brand blue, lower middle
+    _Orb(
+      color: AppColors.primary50,
+      size: 280,
+      ax: 0.15,
+      ay: 0.85,
+      dx: 54,
+      dy: 20,
+      px: 33,
+      py: 47,
+      breathe: 17,
+      opacity: 0.90,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<double>(
-      valueListenable: seconds,
-      builder: (context, s, glow) {
-        // Three unrelated periods, so the path never visibly repeats.
-        final dx = math.sin(2 * math.pi * s / 26) * 26;
-        final dy = math.cos(2 * math.pi * s / 33) * 18;
-        final scale = 1 + 0.05 * math.sin(2 * math.pi * s / 19);
+    return ClipRect(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < orbs.length; i++)
+            Align(
+              alignment: Alignment(orbs[i].ax, orbs[i].ay),
+              child: ValueListenableBuilder<double>(
+                valueListenable: seconds,
+                builder: (context, s, glow) {
+                  final o = orbs[i];
+                  final dx = math.sin(2 * math.pi * s / o.px) * o.dx;
+                  final dy = math.cos(2 * math.pi * s / o.py) * o.dy;
+                  final scale =
+                      1 + 0.08 * math.sin(2 * math.pi * s / o.breathe);
 
-        return Transform(
-          key: const ValueKey('brand-backdrop-glow'),
-          alignment: Alignment.center,
-          transform: Matrix4.translationValues(dx, dy, 0)..scale(scale),
-          child: glow,
-        );
-      },
-      child: RepaintBoundary(
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [
-                AppColors.primary100.withOpacity(0.55),
-                AppColors.primary100.withOpacity(0),
-              ],
+                  return Transform(
+                    key: ValueKey('brand-backdrop-orb-$i'),
+                    alignment: Alignment.center,
+                    transform: Matrix4.translationValues(dx, dy, 0)
+                      ..scaleByDouble(scale, scale, 1, 1),
+                    child: glow,
+                  );
+                },
+                child: RepaintBoundary(child: orbs[i].paint()),
+              ),
             ),
-          ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class _Orb {
+  final Color color;
+  final double size;
+
+  /// Resting position, as an Alignment inside the header area.
+  final double ax;
+  final double ay;
+
+  /// How far it drifts, in px, and over how many seconds.
+  final double dx;
+  final double dy;
+  final double px;
+  final double py;
+
+  /// Period of the size breathing, in seconds.
+  final double breathe;
+
+  /// Strength at the centre; it fades to nothing at the edge.
+  final double opacity;
+
+  const _Orb({
+    required this.color,
+    required this.size,
+    required this.ax,
+    required this.ay,
+    required this.dx,
+    required this.dy,
+    required this.px,
+    required this.py,
+    required this.breathe,
+    required this.opacity,
+  });
+
+  Widget paint() => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          color.withValues(alpha: opacity),
+          color.withValues(alpha: opacity * 0.45),
+          color.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.45, 1],
+      ),
+    ),
+  );
 }
 
 /// A lattice of eight-point stars (two squares rotated 45° — the رُبع الحزب
@@ -271,9 +371,9 @@ class _BreathingGlow extends StatelessWidget {
 class _ArabesquePainter extends CustomPainter {
   const _ArabesquePainter();
 
-  /// Well under the 6–8% ceiling: the motif should register as texture, never
-  /// as content competing with the text above it.
-  static const double _opacity = 0.05;
+  /// At the bottom of the 6–8% ceiling: the motif should register as
+  /// texture, never as content competing with the text above it.
+  static const double _opacity = 0.06;
   static const double tile = 64;
 
   @override

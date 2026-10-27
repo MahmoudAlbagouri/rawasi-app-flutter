@@ -9,6 +9,7 @@ import 'package:rawasi_app_n/features/auth/widgets/profile_menu_item.dart';
 import 'package:rawasi_app_n/features/contact/views/contact_view.dart';
 import 'package:rawasi_app_n/features/contact/views/intro_video_view.dart';
 import 'package:rawasi_app_n/features/contact/views/faq_view.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/animated_item.dart';
 import 'package:rawasi_app_n/shared/app_sounds.dart';
 
@@ -204,7 +205,7 @@ class ProfileMenuList extends StatelessWidget {
         for (var i = 0; i < items.length; i++)
           AnimatedItem(
             delay: Duration(milliseconds: 40 + i * 45),
-            child: items[i],
+            child: Pressable(child: items[i]),
           ),
       ],
     );

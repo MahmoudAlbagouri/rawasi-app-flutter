@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
@@ -65,11 +66,16 @@ class StatsSummaryCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              CustomText(
-                text: '${c.percentLabel}%',
-                color: AppColors.brandPrimary,
-                size: 30,
-                weight: FontWeight.bold,
+              CountUp(
+                value: c.percentage,
+                finalText: '${c.percentLabel}%',
+                during: (v) => '$v%',
+                builder: (text) => CustomText(
+                  text: text,
+                  color: AppColors.brandPrimary,
+                  size: 30,
+                  weight: FontWeight.bold,
+                ),
               ),
               const Gap(8),
               const Padding(

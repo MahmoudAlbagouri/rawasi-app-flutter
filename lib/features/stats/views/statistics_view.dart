@@ -17,9 +17,11 @@ import 'package:rawasi_app_n/features/home/widgets/trial_card.dart';
 import 'package:rawasi_app_n/features/stats/widgets/mastery_card.dart';
 import 'package:rawasi_app_n/features/stats/widgets/my_points_card.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
 import 'package:rawasi_app_n/shared/brand_backdrop.dart';
+import 'package:rawasi_app_n/shared/home_section.dart';
 import 'package:rawasi_app_n/shared/study_reminder_card.dart';
 import 'package:rawasi_app_n/core/network/api_error.dart';
 import 'package:rawasi_app_n/features/stats/data/stats_repo.dart';
@@ -290,22 +292,36 @@ class _StatisticsViewState extends State<StatisticsView> {
                 SizedBox(
                   height: 132,
                   width: 132,
-                  child: CircularProgressIndicator(
-                    value: fraction,
-                    strokeWidth: 11,
-                    backgroundColor: AppColors.gray200,
-                    color: AppColors.brandPrimary,
+                  // The ring fills from empty alongside the count-up.
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: fraction),
+                    duration: motionReduced(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 700),
+                    curve: AppMotion.curve,
+                    builder: (context, v, _) => CircularProgressIndicator(
+                      value: v,
+                      strokeWidth: 11,
+                      backgroundColor: AppColors.gray200,
+                      color: AppColors.brandPrimary,
+                    ),
                   ),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CustomText(
-                      // Shared formatter — home prints the identical string.
-                      text: '${c.percentLabel}%',
-                      color: AppColors.brandPrimary,
-                      size: 28,
-                      weight: FontWeight.bold,
+                    // Shared formatter — home prints the identical string,
+                    // and the count-up lands on exactly it.
+                    CountUp(
+                      value: c.percentage,
+                      finalText: '${c.percentLabel}%',
+                      during: (v) => '$v%',
+                      builder: (text) => CustomText(
+                        text: text,
+                        color: AppColors.brandPrimary,
+                        size: 28,
+                        weight: FontWeight.bold,
+                      ),
                     ),
                     CustomText(
                       text: 'من المنهج',

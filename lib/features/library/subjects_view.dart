@@ -15,6 +15,7 @@ import 'package:rawasi_app_n/root.dart';
 import 'package:rawasi_app_n/shared/account_gate.dart';
 import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 import 'package:rawasi_app_n/shared/auth_actions.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/animated_item.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 
@@ -297,8 +298,10 @@ class _SubjectsViewState extends State<SubjectsView> {
           child: ListView.separated(
             itemCount: subjects.length,
             separatorBuilder: (context, index) => const Gap(16),
-            itemBuilder: (context, index) =>
-                _stagger.wrap(index, _buildSubjectCard(subjects[index])),
+            itemBuilder: (context, index) => _stagger.wrap(
+              index,
+              Pressable(child: _buildSubjectCard(subjects[index])),
+            ),
           ),
         );
       },

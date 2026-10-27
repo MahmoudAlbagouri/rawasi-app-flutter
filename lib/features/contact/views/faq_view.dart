@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 
 class FaqView extends StatelessWidget {
   const FaqView({super.key});
@@ -24,19 +25,21 @@ class FaqView extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: ListView.separated(
-          padding: const EdgeInsets.only(top: 16, bottom: 32),
-          itemCount: faqItems.length,
-          separatorBuilder: (context, index) => const Gap(12),
-          itemBuilder: (context, index) {
-            final item = faqItems[index];
-            return _FaqItem(
-              question: item['question']!,
-              answer: item['answer']!,
-            );
-          },
+      body: BrandBackdrop(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: ListView.separated(
+            padding: const EdgeInsets.only(top: 16, bottom: 32),
+            itemCount: faqItems.length,
+            separatorBuilder: (context, index) => const Gap(12),
+            itemBuilder: (context, index) {
+              final item = faqItems[index];
+              return _FaqItem(
+                question: item['question']!,
+                answer: item['answer']!,
+              );
+            },
+          ),
         ),
       ),
     );

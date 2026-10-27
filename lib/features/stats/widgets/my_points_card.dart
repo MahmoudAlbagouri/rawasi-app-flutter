@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/features/stats/data/student_stats.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/arabic_plural.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
 import 'package:rawasi_app_n/shared/home_section.dart';
@@ -41,11 +42,16 @@ class MyPointsCard extends StatelessWidget {
           ),
           const Gap(10),
           // The points are the headline figure.
-          CustomText(
-            text: arabicPoints(board.myPoints),
-            color: AppColors.brandPrimary,
-            size: 32,
-            weight: FontWeight.bold,
+          CountUp(
+            value: board.myPoints.toDouble(),
+            finalText: arabicPoints(board.myPoints),
+            during: arabicPoints,
+            builder: (text) => CustomText(
+              text: text,
+              color: AppColors.brandPrimary,
+              size: 32,
+              weight: FontWeight.bold,
+            ),
           ),
           const Gap(6),
           const CustomText(
@@ -116,11 +122,7 @@ class MyPointsCard extends StatelessWidget {
     return HomeCard(
       child: Row(
         children: [
-          const Icon(
-            Icons.stars_outlined,
-            color: AppColors.gray400,
-            size: 30,
-          ),
+          const Icon(Icons.stars_outlined, color: AppColors.gray400, size: 30),
           const Gap(14),
           Expanded(
             child: Column(

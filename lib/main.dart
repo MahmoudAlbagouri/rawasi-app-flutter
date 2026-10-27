@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:rawasi_app_n/core/utils/pref_helper.dart';
 import 'package:rawasi_app_n/features/notifications/push_service.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/app_sounds.dart';
 import 'package:rawasi_app_n/shared/network_status_banner.dart';
 import 'package:rawasi_app_n/splash.dart';
@@ -49,7 +50,12 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Tajawal'),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        fontFamily: 'Tajawal',
+        // One way for every screen to arrive — see app_motion.dart.
+        pageTransitionsTheme: AppMotion.pageTransitions,
+      ),
       home: const SplashView(),
       debugShowCheckedModeBanner: false,
       // Wraps the whole navigator, so a dropped connection is announced the

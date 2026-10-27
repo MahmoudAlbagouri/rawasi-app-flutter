@@ -10,6 +10,7 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/models/student.dart';
 import 'package:rawasi_app_n/core/profile/profile_repository.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 
 class StudentDetailsView extends StatefulWidget {
   const StudentDetailsView({super.key});
@@ -52,93 +53,95 @@ class _StudentDetailsViewState extends State<StudentDetailsView> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: FutureBuilder<Student>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError || !snapshot.hasData) {
-              return _error();
-            }
-            final s = snapshot.data!;
-            return RefreshIndicator(
-              onRefresh: () async => _reload(),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _header(s),
-                  const Gap(16),
-                  _section('البيانات الشخصية', Icons.person_outline, [
-                    _row('الاسم', s.fullName),
-                    _row('النوع', _gender(s.gender)),
-                    _row('تاريخ الميلاد', s.birthDate),
-                    _row('رقم الهاتف', s.phone1),
-                    _row(
-                      'واتساب على الرقم الأساسي',
-                      s.isWhatsapp ? 'نعم' : 'لا',
-                    ),
-                    _row('رقم هاتف إضافي', s.phone2),
-                    _row('البريد الإلكتروني', s.email),
-                  ]),
-                  _section('البيانات الدراسية', Icons.school_outlined, [
-                    _row('الصف الدراسي', _grade(s.academicYear)),
-                    _row('الفصل الدراسي', _term(s.termLevel)),
-                    _row('المذهب', _madhab(s.madhab)),
-                    _row('الشعبة', _branch(s.schoolBranch)),
-                    _row('المعهد', s.instituteName),
-                    _row('المحافظة', s.governorate),
-                    _row('المدينة', s.city),
-                    _row(
-                      'الأجزاء المحفوظة من القرآن',
-                      s.quranLevel == null ? null : '${s.quranLevel} جزء',
-                    ),
-                  ]),
-                  _section('الاشتراك', Icons.verified_user_outlined, [
-                    _row(
-                      'حالة الحساب',
-                      s.isActive ? 'مفعّل' : 'غير مفعّل',
-                      valueColor: s.isActive
-                          ? AppColors.success700
-                          : AppColors.error600,
-                    ),
-                    _row(
-                      'استكمال الملف الشخصي',
-                      s.isProfileCompleted ? 'مكتمل' : 'غير مكتمل',
-                    ),
-                    _row('تاريخ التفعيل', _date(s.activeAt)),
-                    _row(
-                      'مدة الاشتراك',
-                      s.availableDays > 0 ? '${s.availableDays} يوم' : null,
-                    ),
-                    _row('نسبة الإنجاز', '${_trim(s.progress)}%'),
-                  ]),
-                  _section('ولي الأمر', Icons.family_restroom_outlined, [
-                    _row('الاسم', s.supervisor1Name),
-                    _row('صلة القرابة', s.supervisor1Relation),
-                    _row('رقم الهاتف', s.supervisor1Phone),
-                  ]),
-                  if (s.supervisor2Name != null &&
-                      s.supervisor2Name!.isNotEmpty)
-                    _section('ولي أمر ثانٍ', Icons.family_restroom_outlined, [
-                      _row('الاسم', s.supervisor2Name),
-                      _row('صلة القرابة', s.supervisor2Relation),
-                      _row('رقم الهاتف', s.supervisor2Phone),
+      body: BrandBackdrop(
+        child: SafeArea(
+          child: FutureBuilder<Student>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError || !snapshot.hasData) {
+                return _error();
+              }
+              final s = snapshot.data!;
+              return RefreshIndicator(
+                onRefresh: () async => _reload(),
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _header(s),
+                    const Gap(16),
+                    _section('البيانات الشخصية', Icons.person_outline, [
+                      _row('الاسم', s.fullName),
+                      _row('النوع', _gender(s.gender)),
+                      _row('تاريخ الميلاد', s.birthDate),
+                      _row('رقم الهاتف', s.phone1),
+                      _row(
+                        'واتساب على الرقم الأساسي',
+                        s.isWhatsapp ? 'نعم' : 'لا',
+                      ),
+                      _row('رقم هاتف إضافي', s.phone2),
+                      _row('البريد الإلكتروني', s.email),
                     ]),
-                  const Gap(8),
-                  Center(
-                    child: CustomText(
-                      text: 'عضو منذ ${_date(s.createdAt) ?? '—'}',
-                      color: AppColors.gray500,
-                      size: 12,
+                    _section('البيانات الدراسية', Icons.school_outlined, [
+                      _row('الصف الدراسي', _grade(s.academicYear)),
+                      _row('الفصل الدراسي', _term(s.termLevel)),
+                      _row('المذهب', _madhab(s.madhab)),
+                      _row('الشعبة', _branch(s.schoolBranch)),
+                      _row('المعهد', s.instituteName),
+                      _row('المحافظة', s.governorate),
+                      _row('المدينة', s.city),
+                      _row(
+                        'الأجزاء المحفوظة من القرآن',
+                        s.quranLevel == null ? null : '${s.quranLevel} جزء',
+                      ),
+                    ]),
+                    _section('الاشتراك', Icons.verified_user_outlined, [
+                      _row(
+                        'حالة الحساب',
+                        s.isActive ? 'مفعّل' : 'غير مفعّل',
+                        valueColor: s.isActive
+                            ? AppColors.success700
+                            : AppColors.error600,
+                      ),
+                      _row(
+                        'استكمال الملف الشخصي',
+                        s.isProfileCompleted ? 'مكتمل' : 'غير مكتمل',
+                      ),
+                      _row('تاريخ التفعيل', _date(s.activeAt)),
+                      _row(
+                        'مدة الاشتراك',
+                        s.availableDays > 0 ? '${s.availableDays} يوم' : null,
+                      ),
+                      _row('نسبة الإنجاز', '${_trim(s.progress)}%'),
+                    ]),
+                    _section('ولي الأمر', Icons.family_restroom_outlined, [
+                      _row('الاسم', s.supervisor1Name),
+                      _row('صلة القرابة', s.supervisor1Relation),
+                      _row('رقم الهاتف', s.supervisor1Phone),
+                    ]),
+                    if (s.supervisor2Name != null &&
+                        s.supervisor2Name!.isNotEmpty)
+                      _section('ولي أمر ثانٍ', Icons.family_restroom_outlined, [
+                        _row('الاسم', s.supervisor2Name),
+                        _row('صلة القرابة', s.supervisor2Relation),
+                        _row('رقم الهاتف', s.supervisor2Phone),
+                      ]),
+                    const Gap(8),
+                    Center(
+                      child: CustomText(
+                        text: 'عضو منذ ${_date(s.createdAt) ?? '—'}',
+                        color: AppColors.gray500,
+                        size: 12,
+                      ),
                     ),
-                  ),
-                  const Gap(16),
-                ],
-              ),
-            );
-          },
+                    const Gap(16),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

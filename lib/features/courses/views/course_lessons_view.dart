@@ -10,8 +10,10 @@ import 'package:rawasi_app_n/features/courses/data/course.dart';
 import 'package:rawasi_app_n/features/courses/data/courses_repo.dart';
 import 'package:rawasi_app_n/features/courses/data/lesson.dart';
 import 'package:rawasi_app_n/features/courses/views/lesson_flow_view.dart';
+import 'package:rawasi_app_n/shared/app_motion.dart';
 import 'package:rawasi_app_n/shared/animated_item.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 
 class CourseLessonsView extends StatefulWidget {
   final int courseId;
@@ -156,7 +158,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
+      body: BrandBackdrop(child: SafeArea(
         child: FutureBuilder<List<Lesson>>(
           future: _lessonsFuture,
           builder: (context, snapshot) {
@@ -208,7 +210,7 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
                 if (capped && index == 0) {
                   return _stagger.wrap(
                     index,
-                    _freeAllowanceNotice(freeLimit, total, trialEnded),
+                    Pressable(child: _freeAllowanceNotice(freeLimit, total, trialEnded)),
                   );
                 }
                 if (_showStreamNotice && index == (capped ? 1 : 0)) {
@@ -217,13 +219,13 @@ class _CourseLessonsViewState extends State<CourseLessonsView> {
 
                 return _stagger.wrap(
                   index,
-                  _lessonCard(lessons[index - leadingRows]),
+                  Pressable(child: _lessonCard(lessons[index - leadingRows])),
                 );
               },
             );
           },
         ),
-      ),
+      )),
     );
   }
 

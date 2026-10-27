@@ -9,6 +9,7 @@ import 'package:rawasi_app_n/core/constants/app_colors.dart';
 import 'package:rawasi_app_n/core/network/api_services.dart';
 import 'package:rawasi_app_n/features/auth/widgets/password_field.dart';
 import 'package:rawasi_app_n/shared/custom_text.dart';
+import 'package:rawasi_app_n/shared/brand_backdrop.dart';
 
 class ChangePasswordView extends StatefulWidget {
   const ChangePasswordView({super.key});
@@ -123,86 +124,88 @@ class _ChangePasswordViewState extends State<ChangePasswordView>
     return Scaffold(
       backgroundColor: AppColors.gray50,
       appBar: AppBar(title: const Text('تغيير كلمة المرور'), centerTitle: true),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomText(
-                  text: 'تغيير كلمة المرور',
-                  color: AppColors.brandPrimary,
-                  size: 24,
-                  weight: FontWeight.bold,
-                ),
-                const Gap(16),
+      body: BrandBackdrop(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomText(
+                    text: 'تغيير كلمة المرور',
+                    color: AppColors.brandPrimary,
+                    size: 24,
+                    weight: FontWeight.bold,
+                  ),
+                  const Gap(16),
 
-                // Required by the API, so a stolen session alone cannot change the password.
-                PasswordField(
-                  controller: _currentPasswordController,
-                  label: 'كلمة المرور الحالية',
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'يرجى إدخال كلمة المرور الحالية'
-                      : null,
-                  enabled: !_isSubmitting,
-                ),
-                const Gap(16),
+                  // Required by the API, so a stolen session alone cannot change the password.
+                  PasswordField(
+                    controller: _currentPasswordController,
+                    label: 'كلمة المرور الحالية',
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'يرجى إدخال كلمة المرور الحالية'
+                        : null,
+                    enabled: !_isSubmitting,
+                  ),
+                  const Gap(16),
 
-                PasswordField(
-                  controller: _newPasswordController,
-                  label: 'كلمة المرور الجديدة',
-                  validator: _validatePassword,
-                  enabled: !_isSubmitting,
-                ),
-                const Gap(16),
+                  PasswordField(
+                    controller: _newPasswordController,
+                    label: 'كلمة المرور الجديدة',
+                    validator: _validatePassword,
+                    enabled: !_isSubmitting,
+                  ),
+                  const Gap(16),
 
-                PasswordField(
-                  controller: _confirmPasswordController,
-                  label: 'تأكيد كلمة المرور',
-                  validator: _validateConfirmPassword,
-                  enabled: !_isSubmitting,
-                ),
-                const Gap(24),
+                  PasswordField(
+                    controller: _confirmPasswordController,
+                    label: 'تأكيد كلمة المرور',
+                    validator: _validateConfirmPassword,
+                    enabled: !_isSubmitting,
+                  ),
+                  const Gap(24),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _submit,
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSubmitting ? null : _submit,
+                      icon: _isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
-                            ),
-                          )
-                        : const Icon(Icons.lock_open, size: 16),
-                    label: _isSubmitting
-                        ? const Text('جاري التحديث...')
-                        : const Text('تحديث كلمة المرور'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isSubmitting
-                          ? AppColors.gray300
-                          : AppColors.brandPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                            )
+                          : const Icon(Icons.lock_open, size: 16),
+                      label: _isSubmitting
+                          ? const Text('جاري التحديث...')
+                          : const Text('تحديث كلمة المرور'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isSubmitting
+                            ? AppColors.gray300
+                            : AppColors.brandPrimary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                        elevation: _isSubmitting ? 0 : 2,
+                        shadowColor: AppColors.brandPrimary.withOpacity(0.3),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                      elevation: _isSubmitting ? 0 : 2,
-                      shadowColor: AppColors.brandPrimary.withOpacity(0.3),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
