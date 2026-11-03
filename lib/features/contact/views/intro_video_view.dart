@@ -7,9 +7,11 @@
 // Until a link is set the screen shows an honest "coming soon" state, and it
 // always offers the support route underneath.
 //
-// Streamed from YouTube, never bundled: no player package and no large asset in
-// the APK. The player is YouTubeEmbed, a locked-down WebView; "open in YouTube"
-// is offered beside it because an in-app WebView has no reliable fullscreen.
+// Never bundled: no player package and no large asset in the APK. A YouTube
+// video plays in YouTubeEmbed, a locked-down WebView, with "open in YouTube"
+// beside it because an in-app WebView has no reliable fullscreen. Any other
+// link (a video file, Google Drive, Vimeo, …) is NOT loaded in the app at all:
+// it gets a «شاهد الفيديو» card that opens it outside the app.
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
@@ -50,7 +52,7 @@ class _IntroVideoViewState extends State<IntroVideoView> {
 
   /// No canLaunchUrl() first: on Android 11+ it answers from the manifest
   /// <queries> list and can say false for a target that launches fine.
-  Future<void> _openInYouTube(AppVideo video) async {
+  Future<void> _openVideo(AppVideo video) async {
     try {
       final launched = await launchUrl(
         Uri.parse(video.watchUrl),
@@ -61,7 +63,11 @@ class _IntroVideoViewState extends State<IntroVideoView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('لا يمكن فتح يوتيوب من هذا الجهاز'),
+          content: Text(
+            video.isYouTube
+                ? 'لا يمكن فتح يوتيوب من هذا الجهاز'
+                : 'لا يمكن فتح الفيديو من هذا الجهاز',
+          ),
           backgroundColor: AppColors.error500,
           behavior: SnackBarBehavior.floating,
         ),
@@ -112,9 +118,16 @@ class _IntroVideoViewState extends State<IntroVideoView> {
                   final video = snapshot.data;
                   if (video == null) return const _ComingSoonCard();
 
+                  if (!video.isYouTube) {
+                    return _ExternalVideoCard(
+                      video: video,
+                      onOpen: () => _openVideo(video),
+                    );
+                  }
+
                   return _VideoCard(
                     video: video,
-                    onOpenInYouTube: () => _openInYouTube(video),
+                    onOpenInYouTube: () => _openVideo(video),
                   );
                 },
               ),
@@ -207,6 +220,81 @@ class _VideoCard extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A video on any other site. Deliberately not loaded in the app: an arbitrary
+/// page has no place in its WebView. One clear button opens it outside.
+class _ExternalVideoCard extends StatelessWidget {
+  final AppVideo video;
+  final VoidCallback onOpen;
+
+  const _ExternalVideoCard({required this.video, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final host = video.externalUrl!.host.replaceFirst(RegExp(r'^www\.'), '');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const CustomText(
+          text: 'شاهد الفيديو التعريفي',
+          color: AppColors.gray900,
+          size: 17,
+          weight: FontWeight.bold,
+        ),
+        const Gap(12),
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Material(
+            color: AppColors.brandPrimary,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onOpen,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      size: 40,
+                      color: AppColors.brandPrimary,
+                    ),
+                  ),
+                  const Gap(12),
+                  const CustomText(
+                    text: 'شاهد الفيديو',
+                    color: Colors.white,
+                    size: 17,
+                    weight: FontWeight.bold,
+                  ),
+                  const Gap(4),
+                  Text(
+                    host,
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const Gap(8),
+        const CustomText(
+          text: 'يفتح الفيديو خارج التطبيق.',
+          color: AppColors.gray600,
+          size: 13,
         ),
       ],
     );

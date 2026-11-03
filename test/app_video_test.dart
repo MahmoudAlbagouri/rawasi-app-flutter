@@ -11,11 +11,11 @@ void main() {
   const adminId = 'v-bcIfQzHFE'; // https://www.youtube.com/watch?v=v-bcIfQzHFE
 
   Map<String, dynamic> envelope(Object? walkthrough) => {
-        'success': true,
-        'data': {'walkthrough': walkthrough},
-        'addtionalData': null,
-        'message': 'تم',
-      };
+    'success': true,
+    'data': {'walkthrough': walkthrough},
+    'addtionalData': null,
+    'message': 'تم',
+  };
 
   group('AppVideo', () {
     test('reads the id the dashboard link produced', () {
@@ -71,18 +71,26 @@ void main() {
       expect(AppVideosRepo.parse(envelope({'id': adminId}))!.id, adminId);
     });
 
-    test('null while no link has been set - the screen shows "coming soon"', () {
-      expect(AppVideosRepo.parse(envelope(null)), isNull);
-      expect(AppVideosRepo.parse({'success': true, 'data': {}}), isNull);
-      expect(AppVideosRepo.parse({'success': true, 'data': null}), isNull);
-    });
+    test(
+      'null while no link has been set - the screen shows "coming soon"',
+      () {
+        expect(AppVideosRepo.parse(envelope(null)), isNull);
+        expect(AppVideosRepo.parse({'success': true, 'data': {}}), isNull);
+        expect(AppVideosRepo.parse({'success': true, 'data': null}), isNull);
+      },
+    );
 
     test('an ApiError VALUE is rethrown, as ApiServices returns it', () {
-      final error = ApiError(message: 'لا يوجد اتصال', isConnectivityIssue: true);
+      final error = ApiError(
+        message: 'لا يوجد اتصال',
+        isConnectivityIssue: true,
+      );
 
       expect(
         () => AppVideosRepo.parse(error),
-        throwsA(isA<ApiError>().having((e) => e.message, 'message', 'لا يوجد اتصال')),
+        throwsA(
+          isA<ApiError>().having((e) => e.message, 'message', 'لا يوجد اتصال'),
+        ),
       );
     });
 
@@ -104,10 +112,12 @@ void main() {
 
     test('fetchWalkthrough asks /app-videos', () async {
       String? asked;
-      final repo = AppVideosRepo(get: (endpoint) async {
-        asked = endpoint;
-        return envelope({'id': adminId});
-      });
+      final repo = AppVideosRepo(
+        get: (endpoint) async {
+          asked = endpoint;
+          return envelope({'id': adminId});
+        },
+      );
 
       expect((await repo.fetchWalkthrough())!.id, adminId);
       expect(asked, '/app-videos');
@@ -122,10 +132,16 @@ void main() {
 
       expect(RegExp('<iframe ').allMatches(html), hasLength(1));
       // The address is written into an attribute, so its & is escaped.
-      expect(html, contains('src="${video.embedUrl.replaceAll('&', '&amp;')}"'));
+      expect(
+        html,
+        contains('src="${video.embedUrl.replaceAll('&', '&amp;')}"'),
+      );
       expect(html, contains('allowfullscreen'));
       // The reason for the wrapper: the iframe's request must carry a referrer.
-      expect(html, contains('referrerpolicy="strict-origin-when-cross-origin"'));
+      expect(
+        html,
+        contains('referrerpolicy="strict-origin-when-cross-origin"'),
+      );
     });
 
     test('carries no script of its own', () {
@@ -145,16 +161,22 @@ void main() {
       expect(main('about:blank'), isTrue);
     });
 
-    test('the player cannot take the whole view to YouTube or anywhere else', () {
-      expect(main('https://www.youtube.com/watch?v=v-bcIfQzHFE'), isFalse);
-      expect(main('https://youtu.be/v-bcIfQzHFE'), isFalse);
-      expect(main('https://rawasi.info/login'), isFalse);
-      expect(main('https://evil.example/'), isFalse);
-      expect(main('http://rawasi.info/'), isFalse);
-    });
+    test(
+      'the player cannot take the whole view to YouTube or anywhere else',
+      () {
+        expect(main('https://www.youtube.com/watch?v=v-bcIfQzHFE'), isFalse);
+        expect(main('https://youtu.be/v-bcIfQzHFE'), isFalse);
+        expect(main('https://rawasi.info/login'), isFalse);
+        expect(main('https://evil.example/'), isFalse);
+        expect(main('http://rawasi.info/'), isFalse);
+      },
+    );
 
     test('frames inside it may load the allow-listed video hosts only', () {
-      expect(frame('https://www.youtube-nocookie.com/embed/v-bcIfQzHFE'), isTrue);
+      expect(
+        frame('https://www.youtube-nocookie.com/embed/v-bcIfQzHFE'),
+        isTrue,
+      );
       expect(frame('https://www.youtube.com/embed/v-bcIfQzHFE'), isTrue);
       expect(frame('https://evil.example/embed/x'), isFalse);
       expect(frame('http://www.youtube.com/embed/x'), isFalse);
@@ -165,9 +187,9 @@ void main() {
 
   group('IntroVideoView', () {
     Widget screen(AppVideosRepo repo) => MaterialApp(
-          locale: const Locale('ar'),
-          home: IntroVideoView(repo: repo),
-        );
+      locale: const Locale('ar'),
+      home: IntroVideoView(repo: repo),
+    );
 
     testWidgets('shows "coming soon" until a link is set', (tester) async {
       await tester.pumpWidget(
@@ -180,13 +202,18 @@ void main() {
       expect(find.text('تواصل مع الدعم'), findsOneWidget);
     });
 
-    testWidgets('shows a loading card while the answer is on its way',
-        (tester) async {
+    testWidgets('shows a loading card while the answer is on its way', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        screen(AppVideosRepo(get: (_) => Future.delayed(
+        screen(
+          AppVideosRepo(
+            get: (_) => Future.delayed(
               const Duration(seconds: 5),
               () => envelope(null),
-            ))),
+            ),
+          ),
+        ),
       );
       await tester.pump();
 
@@ -198,31 +225,35 @@ void main() {
       expect(find.text('الفيديو التعريفي قادم قريبًا'), findsOneWidget);
     });
 
-    testWidgets('a failed request says so and retries - it is not "coming soon"',
-        (tester) async {
-      var calls = 0;
-      final repo = AppVideosRepo(get: (_) async {
-        calls++;
-        return calls == 1
-            ? ApiError(
-                message: 'لا يوجد اتصال بالإنترنت',
-                isConnectivityIssue: true,
-              )
-            : envelope(null);
-      });
+    testWidgets(
+      'a failed request says so and retries - it is not "coming soon"',
+      (tester) async {
+        var calls = 0;
+        final repo = AppVideosRepo(
+          get: (_) async {
+            calls++;
+            return calls == 1
+                ? ApiError(
+                    message: 'لا يوجد اتصال بالإنترنت',
+                    isConnectivityIssue: true,
+                  )
+                : envelope(null);
+          },
+        );
 
-      await tester.pumpWidget(screen(repo));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(screen(repo));
+        await tester.pumpAndSettle();
 
-      expect(find.text('لا يوجد اتصال بالإنترنت'), findsOneWidget);
-      expect(find.text('الفيديو التعريفي قادم قريبًا'), findsNothing);
+        expect(find.text('لا يوجد اتصال بالإنترنت'), findsOneWidget);
+        expect(find.text('الفيديو التعريفي قادم قريبًا'), findsNothing);
 
-      await tester.tap(find.text('إعادة المحاولة'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('إعادة المحاولة'));
+        await tester.pumpAndSettle();
 
-      expect(calls, 2);
-      expect(find.text('الفيديو التعريفي قادم قريبًا'), findsOneWidget);
-    });
+        expect(calls, 2);
+        expect(find.text('الفيديو التعريفي قادم قريبًا'), findsOneWidget);
+      },
+    );
 
     testWidgets('an unexpected failure gets a plain message', (tester) async {
       await tester.pumpWidget(
@@ -231,6 +262,92 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('تعذّر تحميل الفيديو. حاول مرة أخرى.'), findsOneWidget);
+    });
+  });
+
+  // Any web link (2026-11-03): a non-YouTube video is only ever OPENED
+  // outside the app, never loaded in its WebView.
+  group('external video links', () {
+    test('a file or link is read from url, as an external video', () {
+      final link = AppVideo.tryParse({
+        'type': 'link',
+        'id': null,
+        'url': 'https://drive.google.com/file/d/abc/view',
+      })!;
+      expect(link.isYouTube, isFalse);
+      expect(link.watchUrl, 'https://drive.google.com/file/d/abc/view');
+
+      final file = AppVideo.tryParse({
+        'type': 'file',
+        'url': 'https://cdn.example.com/walkthrough.mp4',
+      })!;
+      expect(file.isYouTube, isFalse);
+    });
+
+    test('a YouTube id still wins, and still ignores url', () {
+      final video = AppVideo.tryParse({
+        'type': 'youtube',
+        'id': 'v-bcIfQzHFE',
+        'url': 'https://evil.example/x',
+      })!;
+      expect(video.isYouTube, isTrue);
+      expect(video.watchUrl, isNot(contains('evil')));
+    });
+
+    test('only an absolute http(s) link with a real host is accepted', () {
+      for (final bad in [
+        'javascript:alert(1)',
+        'data:text/html,x',
+        'file:///etc/passwd',
+        'intent://scan/#Intent;end',
+        '/relative/path',
+        'https://localhost/x',
+        'https://user:pass@example.com/x',
+        '',
+      ]) {
+        expect(
+          AppVideo.tryParse({'type': 'link', 'url': bad}),
+          isNull,
+          reason: bad,
+        );
+      }
+      expect(
+        AppVideo.tryParse({'type': 'other', 'url': 'https://a.com/x'}),
+        isNull,
+      );
+    });
+
+    test('an external video can never be embedded', () {
+      expect(
+        () => AppVideo.external('https://vimeo.com/123').embedUrl,
+        throwsStateError,
+      );
+    });
+
+    testWidgets('the screen offers «شاهد الفيديو» and loads no player', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('ar'),
+          home: IntroVideoView(
+            repo: AppVideosRepo(
+              get: (_) async => envelope({
+                'type': 'link',
+                'id': null,
+                'url': 'https://www.drive.google.com/file/d/abc/view',
+              }),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('شاهد الفيديو'), findsOneWidget);
+      expect(find.text('drive.google.com/file/d/abc/view'), findsNothing);
+      expect(find.text('drive.google.com'), findsOneWidget);
+      expect(find.text('يفتح الفيديو خارج التطبيق.'), findsOneWidget);
+      expect(find.byType(YouTubeEmbed), findsNothing);
     });
   });
 }
